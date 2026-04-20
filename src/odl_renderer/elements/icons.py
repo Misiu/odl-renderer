@@ -23,20 +23,54 @@ _LOGGER = logging.getLogger(__name__)
 def _build_mdi_index() -> dict[str, str]:
     """Load the MDI icon index from the bundled metadata file.
 
-    The metadata is stored as a pre-flattened ``{name: codepoint}`` dict so this
-    is a direct JSON load with no transformation. Called once at module import time
-    so the blocking ``open()`` happens in an executor, not during an async render.
+    Supports both the optimized flat ``{name: codepoint}`` dict format and the
+    legacy list-of-entries format (each entry has ``name``, ``codepoint``, and
+    optional ``aliases``).  Called once at module import time so the blocking
+    ``open()`` happens in an executor, not during an async render.
     """
     assets_dir = Path(__file__).parent.parent / "assets"
     metadata_path = assets_dir / "materialdesignicons-webfont_meta.json"
 
     try:
         with open(metadata_path, encoding="utf-8") as f:
-            index: dict[str, str] = json.load(f)
-    except Exception as err:
+            raw_meta: list[dict[str, object]] | dict[str, object] = json.load(f)
+    except (OSError, json.JSONDecodeError) as err:
         raise ValueError(f"Failed to load MDI metadata: {err}") from err
 
-    _LOGGER.debug("Loaded %d MDI icons", len(index))
+    if isinstance(raw_meta, dict):
+        index = {
+            name: codepoint
+            for name, codepoint in raw_meta.items()
+            if isinstance(name, str) and isinstance(codepoint, str)
+        }
+        invalid = len(raw_meta) - len(index)
+        if invalid > 0:
+            _LOGGER.warning("Ignored %d invalid entries in MDI metadata (optimized format)", invalid)
+        _LOGGER.debug("Loaded %d MDI icons (optimized format)", len(index))
+        return index
+
+    if not isinstance(raw_meta, list):
+        raise ValueError(f"Unexpected MDI metadata format: {type(raw_meta).__name__}")
+
+    _LOGGER.warning(
+        "MDI metadata is in legacy list format; consider running scripts/optimize_materialdesignicons_meta.py"
+    )
+    index = {}
+    for entry in raw_meta:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        codepoint = entry.get("codepoint")
+        if not isinstance(name, str) or not isinstance(codepoint, str):
+            continue
+        index[name] = codepoint
+        aliases = entry.get("aliases", [])
+        if isinstance(aliases, list):
+            for alias in aliases:
+                if isinstance(alias, str):
+                    index.setdefault(alias, codepoint)
+
+    _LOGGER.debug("Loaded %d MDI icons (legacy list format)", len(index))
     return index
 
 
