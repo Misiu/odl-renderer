@@ -17,6 +17,8 @@ jobs:
     name: Optimize MDI metadata
     runs-on: ubuntu-latest
     env:
+      # Ensure composite and JavaScript actions run on Node 24 rather than the
+      # end-of-life Node 16/20 runtimes that some pinned action versions still default to.
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:

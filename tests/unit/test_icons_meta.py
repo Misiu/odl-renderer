@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -20,8 +21,6 @@ class TestBuildMdiIndex:
         from odl_renderer.elements.icons import _build_mdi_index
 
         # Use real file via patching Path resolution
-        import builtins
-
         real_open = builtins.open
 
         def fake_open(path, *args, **kwargs):
@@ -44,7 +43,6 @@ class TestBuildMdiIndex:
         meta_file.write_text(json.dumps(meta), encoding="utf-8")
 
         from odl_renderer.elements.icons import _build_mdi_index
-        import builtins
 
         real_open = builtins.open
 
@@ -65,7 +63,6 @@ class TestBuildMdiIndex:
         meta_file.write_text("not valid json", encoding="utf-8")
 
         from odl_renderer.elements.icons import _build_mdi_index
-        import builtins
 
         real_open = builtins.open
 
@@ -83,7 +80,6 @@ class TestBuildMdiIndex:
         meta_file.write_text('"just a string"', encoding="utf-8")
 
         from odl_renderer.elements.icons import _build_mdi_index
-        import builtins
 
         real_open = builtins.open
 

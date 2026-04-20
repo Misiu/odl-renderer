@@ -127,8 +127,6 @@ class TestMainScript:
         src = tmp_path / "meta.json"
         src.write_text(json.dumps(data), encoding="utf-8")
 
-        import sys
-
         orig_argv = sys.argv
         sys.argv = ["optimize_materialdesignicons_meta.py", "--source", str(src), "--output", str(src)]
         try:
