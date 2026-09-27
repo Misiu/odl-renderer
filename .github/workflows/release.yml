@@ -23,6 +23,35 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: .release-please-config.json
 
+      # release-please bumps the version in pyproject.toml but does not refresh
+      # uv.lock (which records the project's own version). Left stale, every
+      # later `uv run` rewrites uv.lock and dirties the tree / blocks commits.
+      # Regenerate it on the release PR branch so the bump and lockfile land
+      # together. Idempotent: re-runs each time release-please updates the PR.
+      - name: Checkout release PR branch
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+
+      - name: Install uv (lockfile sync)
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync uv.lock on the release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: |
+          uv lock
+          if ! git diff --quiet -- uv.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add uv.lock
+            git commit -m "chore: sync uv.lock with release version"
+            git push origin "HEAD:$BRANCH"
+          fi
+
       # The following steps only run if a release was created
       - name: Checkout code
         if: ${{ steps.release.outputs.release_created }}
