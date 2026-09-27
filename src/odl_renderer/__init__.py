@@ -17,6 +17,7 @@ from .colors import (
 from .coordinates import CoordinateParser
 from .core import generate_image, should_show_element
 from .fonts import FontManager
+from .measure import TextMetrics, line_pitch, measure_text
 from .types import DrawingContext, ElementType, TextSegment
 from .warmup import warmup
 
@@ -32,6 +33,9 @@ __all__ = [
     "ColorResolver",
     "CoordinateParser",
     "FontManager",
+    "TextMetrics",
+    "line_pitch",
+    "measure_text",
     "WHITE",
     "BLACK",
     "RED",
