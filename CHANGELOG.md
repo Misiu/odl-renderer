@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.13](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.12...odl-renderer-v0.5.13) (2026-09-27)
+
+
+### Features
+
+* add public measure_text API for layout engines ([e8f12cd](https://github.com/OpenDisplay/odl-renderer/commit/e8f12cd611207c0341290dfb130dd70a8732221a))
+
+
+### Documentation
+
+* add anchor example screenshot to README ([#36](https://github.com/OpenDisplay/odl-renderer/issues/36)) ([e51fc7f](https://github.com/OpenDisplay/odl-renderer/commit/e51fc7fea959c1279b234930c210b67765f1b231))
+
+
+### Continuous Integration
+
+* fix lock-sync step failing on pushes without a release PR ([9a33e2e](https://github.com/OpenDisplay/odl-renderer/commit/9a33e2ee036bcc5c348db39c83e9ac30c9d342f2))
+* sync uv.lock on release-please PRs ([89a1f4b](https://github.com/OpenDisplay/odl-renderer/commit/89a1f4b701dddaa05a1cf149008fbf400239e57d))
+
 ## [0.5.12](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.11...odl-renderer-v0.5.12) (2026-07-06)
 
 
