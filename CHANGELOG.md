@@ -1,5 +1,99 @@
 # Changelog
 
+## [0.5.14](https://github.com/Misiu/odl-renderer/compare/odl-renderer-v0.5.13...odl-renderer-v0.5.14) (2026-10-07)
+
+
+### Features
+
+* add blue and green colors to named color palette ([2d24e0e](https://github.com/Misiu/odl-renderer/commit/2d24e0e0fe3c21c2b6dfb44067a5fc7e811fa0ea))
+* add element rotation/mirror transforms and coerce string visible values ([92b16fd](https://github.com/Misiu/odl-renderer/commit/92b16fd4d00f07e21dfedc28ef6ca60fd37a9cce))
+* add font_dirs parameter to FontManager and generate_image ([421b2c0](https://github.com/Misiu/odl-renderer/commit/421b2c0eadbc89b0712e15d6a88f8c23895498e5))
+* add public measure_text API for layout engines ([e8f12cd](https://github.com/Misiu/odl-renderer/commit/e8f12cd611207c0341290dfb130dd70a8732221a))
+* **icons:** include mdi icons ([596d9b7](https://github.com/Misiu/odl-renderer/commit/596d9b785186ffa56befa3508df46080d788ac7e))
+* initial port ([b8d69ba](https://github.com/Misiu/odl-renderer/commit/b8d69bad01300b55bd2999532665a0e71a50bfbf))
+* **text:** support hex color tags in parse_colors ([aab85c3](https://github.com/Misiu/odl-renderer/commit/aab85c35c75ff9c585ffe2fd0db4765257c272a8)), closes [#4](https://github.com/Misiu/odl-renderer/issues/4)
+* **visualizations:** add plot draw type ([7b27be2](https://github.com/Misiu/odl-renderer/commit/7b27be21da66a9116caa7f7f95ead52b7ebf86b7))
+
+
+### Bug Fixes
+
+* add gray levels, fix half_white, harden hex, centralize named colors ([317d6bc](https://github.com/Misiu/odl-renderer/commit/317d6bc63d61b4b402e71e6382c41134128aa63f))
+* align pivot anchors with the text/PIL convention ([723319a](https://github.com/Misiu/odl-renderer/commit/723319a426a268a6ce0638b50c882532afed6b43))
+* **coercion:** tolerate string/percentage input on numeric fields; widen visible ([0238de2](https://github.com/Misiu/odl-renderer/commit/0238de2049779974d7e94e63ebd0f6bd9bfbcbc2))
+* **coercion:** tolerate string/percentage input on numeric fields; widen visible falsy set ([55678b2](https://github.com/Misiu/odl-renderer/commit/55678b28e40d89dd971a1255151906022a29f6ae))
+* draw icons directly onto canvas with Pillow native anchors ([10d6c59](https://github.com/Misiu/odl-renderer/commit/10d6c5916c04f36dde2951350020c28d070e69f8))
+* optimize MDI metadata and add warmup() public API ([6121d86](https://github.com/Misiu/odl-renderer/commit/6121d866ecda2b37bef05089c36b402500d168d9))
+* **plot:** prevent crashes, hangs, and wrong-series rendering ([81d0884](https://github.com/Misiu/odl-renderer/commit/81d0884ab33609b3e561e566d6a20d0c7b7c2cfa))
+* **plot:** prevent crashes, hangs, and wrong-series rendering ([d268857](https://github.com/Misiu/odl-renderer/commit/d26885722598da3c73e2dea895fd9f77d327f1bf))
+* **plot:** use local timezone ([17995f0](https://github.com/Misiu/odl-renderer/commit/17995f037c042c817f2fc703d5b1a11408362d86))
+* remove pytest from normal dependencies ([e016177](https://github.com/Misiu/odl-renderer/commit/e0161773d26d917b28369bd608ddcf2eb5c6869c))
+* **shapes,colors:** guard zero-length dashed line; warn on unresolved colors ([7bfe12b](https://github.com/Misiu/odl-renderer/commit/7bfe12b48bd7a1cd0b09ebf3f13d4163f5c61881))
+* **shapes,colors:** guard zero-length dashed line; warn on unresolved colors ([44303d5](https://github.com/Misiu/odl-renderer/commit/44303d5eae7139b86b86fd45ba51cec334f208d3))
+* **text:** honor element color/anchor on parse_colors path and drop O(n^2) fitting ([0e2cce2](https://github.com/Misiu/odl-renderer/commit/0e2cce29beec69f536b782e3520045177b9f6dd9))
+* **text:** honor element color/anchor on parse_colors path and drop O(n²) fitting ([e4d6b05](https://github.com/Misiu/odl-renderer/commit/e4d6b059eb07d3f710a62bcf75aad28ca677fa9a))
+* **text:** parse blue/green color tags ([65348e3](https://github.com/Misiu/odl-renderer/commit/65348e3fbb357b42bac4c485f6b95787ec31dee3))
+
+
+### Performance Improvements
+
+* crop element transforms, composite dlimg in place, cache fonts and QR codes ([5e3e919](https://github.com/Misiu/odl-renderer/commit/5e3e9197c3d8f93d59aa4933a0b482103fa30476))
+* crop element transforms, composite dlimg in place, cache fonts and QR codes ([fbbb3dd](https://github.com/Misiu/odl-renderer/commit/fbbb3dd89c7e26773b330b43f9ed1dd31a2898e2))
+
+
+### Documentation
+
+* add anchor example screenshot to README ([#36](https://github.com/Misiu/odl-renderer/issues/36)) ([e51fc7f](https://github.com/Misiu/odl-renderer/commit/e51fc7fea959c1279b234930c210b67765f1b231))
+* add badges ([1ae2ff1](https://github.com/Misiu/odl-renderer/commit/1ae2ff1960c7f011f985e6c98d7b6b37082c55c7))
+* add black border around each image ([15e93dc](https://github.com/Misiu/odl-renderer/commit/15e93dc7901038d49d8d996898a215cdf9200eba))
+* add generateable screenshots ([fecb2c0](https://github.com/Misiu/odl-renderer/commit/fecb2c05ba049ab096323fea46d8fe18ef79641a))
+* change json to python ([852610e](https://github.com/Misiu/odl-renderer/commit/852610e4941222f3835ca2c6c8597b111c83fde2))
+* update image paths for pypi ([ddd35c5](https://github.com/Misiu/odl-renderer/commit/ddd35c57ecf39ee2014c21829e6aaedc726d2084))
+* update plot ([5001231](https://github.com/Misiu/odl-renderer/commit/5001231e34f69adf9a053fefc982d9a5b01c4f33))
+* update readme ([7cb40c0](https://github.com/Misiu/odl-renderer/commit/7cb40c04e7d2d42bbb01389981c2a58ff02af9fa))
+
+
+### Code Refactoring
+
+* rename package from drawcustom to odl-renderer ([3573e49](https://github.com/Misiu/odl-renderer/commit/3573e498e1a5cd59ab7e73d4f8af34b8a2fbe829))
+
+
+### Tests
+
+* add forgotten plot rendering ([8203094](https://github.com/Misiu/odl-renderer/commit/8203094afdda5e0c34514da62e9cef1147588a07))
+* add forgotten snapshots ([771ee87](https://github.com/Misiu/odl-renderer/commit/771ee8786508a3e34a9a499a74fb8b25f60f1150))
+* add integration tests for shapes, debug, text, and icons ([a7a54f9](https://github.com/Misiu/odl-renderer/commit/a7a54f9ec533e86a94855d096d511d27a46e6c63))
+* add test suite ([f07311c](https://github.com/Misiu/odl-renderer/commit/f07311caaab77cb7eee51c36332426a5ec9349fa))
+* add tests for media_loader, fonts, coordinates, core, media, visualizations ([dccd47d](https://github.com/Misiu/odl-renderer/commit/dccd47dab3254eea95ea5a0c08aa6642b29a2358))
+* add visual regression tests for grayscale ramp and gray text ([c31aaa3](https://github.com/Misiu/odl-renderer/commit/c31aaa3f7caf164bbbfd78d08572fa0fb7ac330a))
+* fix dependencies ([f54901f](https://github.com/Misiu/odl-renderer/commit/f54901fec0f96ff615058c1be94aba1de106380f))
+* **plot:** add integration tests for plot element ([b0c58cb](https://github.com/Misiu/odl-renderer/commit/b0c58cbfae0cd12d7558b71c646d029cf2baafcc))
+* refresh visual snapshots after merging the fix/perf train ([f23721d](https://github.com/Misiu/odl-renderer/commit/f23721d3767b4a7b0b4a03793592e4feb66cfa47))
+* refresh visual snapshots after merging the fix/perf train ([4ae61eb](https://github.com/Misiu/odl-renderer/commit/4ae61ebf7ab9d0615867d3abce157c54a592f129))
+* remove redundant visual-tests workflow step ([7978b6d](https://github.com/Misiu/odl-renderer/commit/7978b6dc0892cbd6eb39a18cfdb0c80a2f6449ac))
+* skip visual tests in CI ([ef4814d](https://github.com/Misiu/odl-renderer/commit/ef4814d9c241efb90d97156785f4e5ba027bc75d))
+* skip visual tests in CI coverage ([93046df](https://github.com/Misiu/odl-renderer/commit/93046df78f1bdd51ed23b5586739c02cf8288721))
+* update icon anchor tests to use Pillow native anchor names ([90757ac](https://github.com/Misiu/odl-renderer/commit/90757ac763f74ce18d52e44e722d5602a3cc2413))
+
+
+### Continuous Integration
+
+* add cache to lint workflow ([061b421](https://github.com/Misiu/odl-renderer/commit/061b421309f09a724ccf155e610de667ede73cec))
+* add cache to test workflow ([040113a](https://github.com/Misiu/odl-renderer/commit/040113aaa4cf81c5a9ba87149be4645669a760f7))
+* add python 3.14 to test matrix ([3c7169d](https://github.com/Misiu/odl-renderer/commit/3c7169d3150e1f1279e3260200b8cb4d1bfbff5a))
+* add separate token again ([3e6fcaa](https://github.com/Misiu/odl-renderer/commit/3e6fcaa0cf9b59aa7404fcd942aca4164da50bb0))
+* add token to release workflow for authentication ([4ad11e9](https://github.com/Misiu/odl-renderer/commit/4ad11e9232964cb5c01c3977b654cd97be6f4863))
+* disable mypy for now ([55293d5](https://github.com/Misiu/odl-renderer/commit/55293d5dd0974b472c7a2f7c55eb3fd887d2007b))
+* fix lock-sync step failing on pushes without a release PR ([9a33e2e](https://github.com/Misiu/odl-renderer/commit/9a33e2ee036bcc5c348db39c83e9ac30c9d342f2))
+* remove extra-files section from release config ([d09aa29](https://github.com/Misiu/odl-renderer/commit/d09aa2982e96c01fbd3432f9a0bafade7b8c0d8b))
+* remove separate token ([b0700e0](https://github.com/Misiu/odl-renderer/commit/b0700e049e83a5a769dab5e7e957eb70270fc252))
+* remove unnecessary cache ([eb280ce](https://github.com/Misiu/odl-renderer/commit/eb280ce5f5a8c39fd8f9cbcc6f5e6af693f4cf3a))
+* separate lint and test workflows ([7a043d3](https://github.com/Misiu/odl-renderer/commit/7a043d344a5804ee451f20e393d293ee64eda95f))
+* sync uv.lock on release-please PRs ([89a1f4b](https://github.com/Misiu/odl-renderer/commit/89a1f4b701dddaa05a1cf149008fbf400239e57d))
+* update cache ([522a9b1](https://github.com/Misiu/odl-renderer/commit/522a9b1bfbab3c77f26b52d7fc74356f4245ed22))
+* update ci ([684fa56](https://github.com/Misiu/odl-renderer/commit/684fa5662079f4423a6f692f0dae1ece5eed6724))
+* update lint workflow ([fd4e614](https://github.com/Misiu/odl-renderer/commit/fd4e614922a5728cdbc1455ce6fccc9dafa7716a))
+* update test workflow ([52b880e](https://github.com/Misiu/odl-renderer/commit/52b880ef37aab88546df1b94677f0a8c499d6c0d))
+
 ## [0.5.13](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.12...odl-renderer-v0.5.13) (2026-09-27)
 
 
