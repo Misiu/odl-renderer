@@ -1,4 +1,4 @@
-"""Pattern overlays for shapes: hatch, dots and grid, drawn pixel-exact.
+"""Pattern fills for shapes: hatch, dots, grid and tone, drawn pixel-exact.
 
 A pattern is drawn in one flat color, without anti-aliasing, so every pixel is a
 palette color and survives any dithering mode. It is anchored to the canvas, not to
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,7 +48,7 @@ class Pattern:
     level: float
 
 
-def parse_pattern(spec: Any) -> Pattern | None:
+def parse_pattern(spec: Any, default_color: str = "black") -> Pattern | None:
     """Parse a ``pattern`` field; None means a plain fill.
 
     Accepts a type name (``"hatch"``) or an object with ``type``, ``color``,
@@ -71,7 +72,7 @@ def parse_pattern(spec: Any) -> Pattern | None:
         return None
     return Pattern(
         type=kind,
-        color=str(spec.get("color", "black")),
+        color=str(spec.get("color", default_color)),
         spacing=max(1, int(coerce_number(spec.get("spacing", DEFAULT_SPACING), DEFAULT_SPACING))),
         width=max(1, int(coerce_number(spec.get("width", DEFAULT_WIDTH), DEFAULT_WIDTH))),
         angle=float(coerce_number(spec.get("angle", DEFAULT_ANGLE), DEFAULT_ANGLE)) % 180,
@@ -91,6 +92,8 @@ class Area:
 
 def clip_area(ctx: DrawingContext, left: int, top: int, right: int, bottom: int) -> Area | None:
     """Return the part of an inclusive box that lies on the canvas, or None."""
+    left, right = min(left, right), max(left, right)
+    top, bottom = min(top, bottom), max(top, bottom)
     x0, y0 = max(left, 0), max(top, 0)
     x1, y1 = min(right, ctx.img.width - 1), min(bottom, ctx.img.height - 1)
     if x1 < x0 or y1 < y0:
@@ -255,3 +258,64 @@ def draw_pattern(ctx: DrawingContext, pattern: Pattern, area: Area, shape: Image
     if color[3] < OPAQUE:
         mask = mask.point(lambda value: value * color[3] // OPAQUE)
     ctx.img.paste(Image.new("RGBA", mask.size, (*color[:3], OPAQUE)), (area.x, area.y), mask)
+
+
+Color = tuple[int, int, int, int]
+
+
+@dataclass(frozen=True)
+class ShapeStyle:
+    """How a shape is painted: its fill, outline and pattern."""
+
+    fill: Color | None
+    outline: Color | None
+    width: int
+    pattern: Pattern | None
+
+
+# Draws one shape. Called with a drawing surface and the offset to add to every coordinate, so
+# the same function paints the canvas (offset 0) and the mask of the shape (offset of its area).
+Shape = Callable[..., None]
+
+
+def paint_shape(ctx: DrawingContext, style: ShapeStyle, box: tuple[int, int, int, int], shape: Shape) -> None:
+    """Paint a shape with its fill, then its pattern, then its outline.
+
+    This is the one place that knows about patterns, so every shape gets them the same way.
+    A shape only says how to draw its silhouette:
+    ``shape(draw, dx, dy, fill=..., outline=..., width=...)`` draws it with ``dx`` and ``dy``
+    added to its coordinates.
+
+    Args:
+        ctx: Drawing context
+        style: Fill, outline, outline width and the parsed pattern
+        box: The inclusive bounding box of the shape, ``(left, top, right, bottom)``
+        shape: Draws the silhouette of the shape
+    """
+    draw = ImageDraw.Draw(ctx.img)
+    if style.pattern is None:
+        shape(draw, 0, 0, fill=style.fill, outline=style.outline, width=style.width)
+        return
+    if style.fill is not None:
+        shape(draw, 0, 0, fill=style.fill, outline=None, width=style.width)
+    area = clip_area(ctx, *box)
+    if area is not None:
+        silhouette = Image.new("L", (area.width, area.height), 0)
+        shape(ImageDraw.Draw(silhouette), -area.x, -area.y, fill=OPAQUE, outline=None, width=style.width)
+        draw_pattern(ctx, style.pattern, area, silhouette)
+    if style.outline is not None and style.width > 0:
+        shape(draw, 0, 0, fill=None, outline=style.outline, width=style.width)
+
+
+def rectangle_shape(left: float, top: float, right: float, bottom: float) -> Shape:
+    """Return the shape of a square-cornered rectangle, for elements that draw bars."""
+
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
+        draw.rectangle((left + dx, top + dy, right + dx, bottom + dy), **paint)
+
+    return shape
+
+
+def bounding_box(left: float, top: float, right: float, bottom: float) -> tuple[int, int, int, int]:
+    """Round a box outwards to whole pixels, for the area a pattern may cover."""
+    return math.floor(left), math.floor(top), math.ceil(right), math.ceil(bottom)

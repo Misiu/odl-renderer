@@ -13,6 +13,7 @@ import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from PIL import ImageOps
@@ -41,13 +42,18 @@ class MockDataProvider:
         entity_ids: list[str],
         start: datetime,
         end: datetime,
-    ) -> dict[str, list[dict]]:
-        rng = random.Random(42)
+    ) -> dict[str, list[dict[str, str]]]:
         result = {}
-        for entity_id in entity_ids:
+        for index, entity_id in enumerate(entity_ids):
+            # Each entity gets its own walk (a single series keeps the original one).
+            # With several, the first falls and the others rise, so they cross.
+            rng = random.Random(42 + index)
             records = []
             current = start
-            value = 20.0
+            value = 20.0 if index == 0 else 8.0
+            drift = 0.7 if index else 0.0
+            if index == 0 and len(entity_ids) > 1:
+                value, drift = 26.0, -0.6
             while current <= end:
                 records.append(
                     {
@@ -55,13 +61,13 @@ class MockDataProvider:
                         "last_changed": current.isoformat(),
                     }
                 )
-                value += (rng.random() - 0.5) * 2
+                value += (rng.random() - 0.5) * 2 + drift
                 current += timedelta(hours=1)
             result[entity_id] = records
         return result
 
 
-def parse_element_examples(readme: str) -> dict[str, dict]:
+def parse_element_examples(readme: str) -> dict[str, Any]:
     """Extract element config dicts keyed by element name."""
     examples = {}
     for section in re.split(r"\n(?=### `[a-z_]+`)", readme):
@@ -81,7 +87,7 @@ def parse_element_examples(readme: str) -> dict[str, dict]:
     return examples
 
 
-async def render_element(name: str, config: dict, session: aiohttp.ClientSession) -> None:
+async def render_element(name: str, config: Any, session: aiohttp.ClientSession) -> None:
     """Render a single element config to a PNG file."""
 
     # An example may be a single element dict or a list of elements (used by the

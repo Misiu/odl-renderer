@@ -1,4 +1,4 @@
-"""Generate the example pictures for the rectangle `pattern` field.
+"""Generate the example pictures for the `pattern` field.
 
 Each picture is written to docs/screenshots/patterns/. They show what the pattern types
 look like, how a tone compares with a gray under dithering, how patterns layer with fills,
@@ -8,7 +8,9 @@ outlines and rounded corners, and what a calendar looks like with and without th
 from __future__ import annotations
 
 import asyncio
+import math
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -57,7 +59,7 @@ def line(x_start: int, y_start: int, x_end: int, y_end: int, **fields: Any) -> E
 
 async def render(elements: list[Element], width: int, height: int) -> Image.Image:
     """Render elements on a white canvas."""
-    image = await generate_image(width=width, height=height, elements=elements, background="white")
+    image: Image.Image = await generate_image(width=width, height=height, elements=elements, background="white")
     return image.convert("RGB")
 
 
@@ -233,6 +235,104 @@ async def dithering_picture() -> Image.Image:
     return sheet
 
 
+def shape(kind: str, **fields: Any) -> Element:
+    """Return an element of any type from its fields."""
+    return {"type": kind, **fields}
+
+
+class SeriesProvider:
+    """Two smooth series, one falling and one rising, for the plot in the shapes sheet."""
+
+    async def get_history(self, entity_ids: list[str], start: datetime, end: datetime) -> dict[str, list[Element]]:
+        hours = int((end - start).total_seconds() // 3600)
+        result: dict[str, list[Element]] = {}
+        for index, entity_id in enumerate(entity_ids):
+            records = []
+            for hour in range(hours + 1):
+                progress = hour / hours
+                wave = math.sin(progress * 6 + index) * 1.5
+                value = 24 - 14 * progress + wave if index == 0 else 8 + 14 * progress + wave
+                records.append(
+                    {"state": str(round(value, 2)), "last_changed": (start + timedelta(hours=hour)).isoformat()}
+                )
+            result[entity_id] = records
+        return result
+
+
+def shapes_sheet() -> list[Element]:
+    """Every shape that takes a pattern, each with a caption."""
+    fills = {"fill": "yellow"}
+    red_hatch = {"type": "hatch", "color": "red", "angle": 135, "width": 2, "spacing": 7}
+    star = [(90, 20), (104, 60), (146, 60), (112, 85), (125, 128), (90, 102), (55, 128), (68, 85), (34, 60), (76, 60)]
+    star = [(x + 340, y + 8) for x, y in star]
+    elements: list[Element] = [
+        shape("circle", x=70, y=75, radius=50, pattern="hatch"),
+        text("circle: hatch", 70, 135, 13),
+        shape("circle", x=190, y=75, radius=50, width=3, pattern={"type": "dots", "spacing": 5, "width": 2}),
+        text("circle: dots", 190, 135, 13),
+        shape("ellipse", x_start=270, y_start=30, x_end=400, y_end=120, **fills, pattern=red_hatch),
+        text("ellipse: red hatch on yellow", 335, 135, 13),
+        shape("polygon", points=[(x + 100, y) for x, y in star], pattern={"type": "tone", "level": 35}),
+        text("polygon: tone", 530, 135, 13),
+        shape("arc", x=700, y=75, radius=55, start_angle=-60, end_angle=240, pattern={"type": "grid", "spacing": 8}),
+        text("arc: a pie slice with a grid", 700, 135, 13),
+        shape(
+            "progress_bar",
+            x_start=20,
+            y_start=180,
+            x_end=380,
+            y_end=210,
+            progress=65,
+            fill="black",
+            pattern={"type": "dots", "color": "white", "spacing": 3},
+        ),
+        text("progress_bar: pattern on the progress", 200, 214, 13),
+        shape(
+            "progress_bar",
+            x_start=20,
+            y_start=250,
+            x_end=380,
+            y_end=280,
+            progress=40,
+            fill="white",
+            pattern="hatch",
+            background_pattern={"type": "tone", "level": 20},
+        ),
+        shape(
+            "diagram",
+            x=410,
+            height=190,
+            width=370,
+            bars={
+                "values": "Mon,10;Tue,20;Wed,15;Thu,25",
+                "color": "red",
+                "pattern": {"type": "hatch", "color": "black", "angle": 135, "spacing": 5},
+            },
+        ),
+        text("progress_bar: pattern and background_pattern", 200, 284, 13),
+        shape(
+            "plot",
+            x_start=20,
+            y_start=325,
+            x_end=380,
+            y_end=450,
+            duration=24 * 3600,
+            data=[
+                {
+                    "entity": "falling",
+                    "color": "black",
+                    "width": 2,
+                    "pattern": {"type": "hatch", "angle": 90, "spacing": 5},
+                },
+                {"entity": "rising", "color": "red", "width": 2, "pattern": {"type": "dots", "spacing": 4}},
+            ],
+        ),
+        text("plot: pattern under each series", 200, 456, 13),
+        text("diagram: bars.pattern", 600, 262, 13),
+    ]
+    return elements
+
+
 def calendar_week() -> list[Element]:
     """A week grid like the ones calendar widgets draw, using the patterns."""
     left, top, column, header, row = 10, 10, 111, 34, 145
@@ -325,6 +425,10 @@ async def main() -> None:
     week = calendar_week()
     save(await render(week, 800, 480), "calendar_week")
     save(await render(without_patterns(week), 800, 480), "calendar_week_older_renderer")
+    shapes = await generate_image(
+        width=800, height=480, elements=shapes_sheet(), background="white", data_provider=SeriesProvider()
+    )
+    save(shapes.convert("RGB"), "shapes")
 
 
 if __name__ == "__main__":

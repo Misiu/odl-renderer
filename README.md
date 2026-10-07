@@ -33,6 +33,7 @@ pip install odl-renderer
 import asyncio
 from odl_renderer import generate_image
 
+
 async def main():
     image = await generate_image(
         width=296,
@@ -63,6 +64,7 @@ async def main():
         accent_color="red",
     )
     image.save("output.png")
+
 
 asyncio.run(main())
 ```
@@ -390,13 +392,16 @@ Rectangle with optional fill, outline, and rounded corners.
 
 #### Pattern
 
-A rectangle can carry a `pattern`: hatching, stripes, dots, a grid or a tone. It is drawn
+Every closed shape (`rectangle`, `circle`, `ellipse`, `polygon`, `arc`) and the filled parts of
+`progress_bar`, `diagram` bars and `plot` series can carry a `pattern`: hatching, stripes, dots,
+a grid or a tone. It is drawn
 over the `fill` (so the fill shows between the lines), inside the shape (rounded corners
 included) and under the outline. Pattern pixels are exact palette colors, never blended or
 anti-aliased, so every `dither` mode leaves them unchanged. The pattern is anchored to the
 canvas, not to the shape, so shapes that touch continue the same pattern without a seam.
 
-Give a name for the defaults (`"pattern": "hatch"`) or an object:
+A renderer that does not know the field ignores it and draws the plain fill. Give a name for the
+defaults (`"pattern": "hatch"`) or an object:
 
 | Field     | Applies to | Default   | Notes                                                                                                          |
 |-----------|------------|-----------|----------------------------------------------------------------------------------------------------------------|
@@ -445,6 +450,33 @@ same in a preview and on the display. It does not depend on `dither`, unlike the
 
 On the right, `half_black` for comparison: one fixed tone whose pixels depend on the dithering of
 the display.
+
+All pattern types, with angles and parameters, and how a pattern layers with a fill, an outline,
+rounded corners and a color with alpha:
+
+![every pattern type](docs/screenshots/patterns/pattern_types.png)
+
+![layers, clipping and shapes that touch](docs/screenshots/patterns/layers.png)
+
+#### Patterns on every shape
+
+The same `pattern` field works on every shape that has an inside, always with the same rules:
+fill first, then the pattern clipped to the silhouette, then the outline.
+
+| Element | Where the pattern goes |
+|---------|------------------------|
+| `rectangle`, `circle`, `ellipse`, `polygon` | the whole shape |
+| `arc` | the pie slice (a `pattern` turns the arc into a pie slice, like `fill` does) |
+| `progress_bar` | `pattern` on the progress part, `background_pattern` on the empty track |
+| `diagram` | `bars.pattern` on every bar |
+| `plot` | `pattern` in a series: the area between the line and the bottom of the diagram, in the series color unless the pattern sets its own |
+
+![a pattern on every shape](docs/screenshots/patterns/shapes.png)
+
+A pattern is made of palette pixels, so a display that dithers its picture leaves it unchanged,
+where a gray fill turns into noise:
+
+![grays against patterns, as rendered and after dithering](docs/screenshots/patterns/dithering.png)
 
 ---
 
@@ -498,6 +530,7 @@ Circle defined by center point and radius.
 | `fill`    | no       | —         | Fill color       |
 | `outline` | no       | `"black"` | Border color     |
 | `width`   | no       | `1`       | Border width     |
+| `pattern` | no       | —         | Pattern drawn over the fill and under the outline: a name (`"hatch"`) or an object, see [Pattern](#pattern) |
 
 ```yaml
 {
@@ -511,6 +544,20 @@ Circle defined by center point and radius.
 ```
 
 ![circle example](docs/screenshots/circle.png)
+
+With a pattern:
+
+<!-- screenshot: circle_patterns -->
+```yaml
+[
+    {"type": "circle", "x": 40, "y": 64, "radius": 32, "pattern": "hatch"},
+    {"type": "circle", "x": 112, "y": 64, "radius": 32, "pattern": {"type": "dots", "spacing": 5}},
+    {"type": "circle", "x": 184, "y": 64, "radius": 32, "fill": "yellow", "width": 3, "pattern": {"type": "hatch", "color": "red", "angle": 135, "spacing": 6}},
+    {"type": "circle", "x": 256, "y": 64, "radius": 32, "pattern": {"type": "tone", "level": 40}},
+]
+```
+
+![circle patterns example](docs/screenshots/circle_patterns.png)
 
 ---
 
@@ -527,6 +574,7 @@ Ellipse defined by a bounding box.
 | `fill`    | no       | —         | Fill color   |
 | `outline` | no       | `"black"` | Border color |
 | `width`   | no       | `1`       | Border width |
+| `pattern` | no       | —         | Pattern drawn over the fill and under the outline: a name (`"hatch"`) or an object, see [Pattern](#pattern) |
 
 ```yaml
 {
@@ -541,6 +589,18 @@ Ellipse defined by a bounding box.
 
 ![ellipse example](docs/screenshots/ellipse.png)
 
+With a pattern:
+
+<!-- screenshot: ellipse_patterns -->
+```yaml
+[
+    {"type": "ellipse", "x_start": 8, "y_start": 12, "x_end": 140, "y_end": 116, "pattern": {"type": "grid", "spacing": 8}},
+    {"type": "ellipse", "x_start": 156, "y_start": 12, "x_end": 288, "y_end": 116, "fill": "yellow", "pattern": {"type": "hatch", "angle": 45, "color": "red", "width": 2, "spacing": 7}},
+]
+```
+
+![ellipse patterns example](docs/screenshots/ellipse_patterns.png)
+
 ---
 
 ### `polygon`
@@ -552,6 +612,7 @@ Arbitrary polygon defined by a list of vertices.
 | `points`  | yes      | —         | List of `[x, y]` pairs |
 | `fill`    | no       | —         | Fill color             |
 | `outline` | no       | `"black"` | Border color           |
+| `pattern` | no       | —         | Pattern drawn over the fill and under the outline: a name (`"hatch"`) or an object, see [Pattern](#pattern) |
 
 ```yaml
 {
@@ -562,6 +623,19 @@ Arbitrary polygon defined by a list of vertices.
 ```
 
 ![polygon example](docs/screenshots/polygon.png)
+
+With a pattern:
+
+<!-- screenshot: polygon_patterns -->
+```yaml
+[
+    {"type": "polygon", "points": [[10, 116], [90, 116], [50, 12]], "pattern": "hatch"},
+    {"type": "polygon", "points": [[110, 64], [160, 12], [210, 64], [160, 116]], "fill": "yellow", "pattern": {"type": "dots", "color": "red", "width": 2, "spacing": 6}},
+    {"type": "polygon", "points": [[230, 116], [290, 116], [290, 12]], "pattern": {"type": "tone", "level": 30}},
+]
+```
+
+![polygon patterns example](docs/screenshots/polygon_patterns.png)
 
 ---
 
@@ -577,6 +651,7 @@ Arc or pie slice defined by center, radius, and angle range.
 | `start_angle` | yes      | —         | Start angle in degrees (0 = right, counter-clockwise) |
 | `end_angle`   | yes      | —         | End angle in degrees                                  |
 | `fill`        | no       | —         | Fill color (creates a pie slice)                      |
+| `pattern`     | no       | —         | Pattern for the pie slice, see [Pattern](#pattern); also makes it a pie slice |
 | `outline`     | no       | `"black"` | Border color                                          |
 | `width`       | no       | `1`       | Border width                                          |
 
@@ -594,6 +669,18 @@ Arc or pie slice defined by center, radius, and angle range.
 ```
 
 ![arc example](docs/screenshots/arc.png)
+
+With a pattern:
+
+<!-- screenshot: arc_patterns -->
+```yaml
+[
+    {"type": "arc", "x": 64, "y": 64, "radius": 52, "start_angle": 0, "end_angle": 270, "pattern": "hatch"},
+    {"type": "arc", "x": 220, "y": 64, "radius": 52, "start_angle": -90, "end_angle": 200, "fill": "yellow", "pattern": {"type": "hatch", "angle": 135, "color": "red", "spacing": 6}},
+]
+```
+
+![arc patterns example](docs/screenshots/arc_patterns.png)
 
 ---
 
@@ -768,6 +855,8 @@ Horizontal or vertical progress bar with optional percentage label.
 | `background`      | no       | `"white"` | Empty track color                        |
 | `outline`         | no       | `"black"` | Border color                             |
 | `width`           | no       | `1`       | Border width                             |
+| `pattern`         | no       | —         | Pattern on the progress part, see [Pattern](#pattern) |
+| `background_pattern` | no    | —         | Pattern on the empty track               |
 | `show_percentage` | no       | `false`   | Overlay percentage text                  |
 | `font_name`       | no       | `"ppb"`   | Font for percentage text                 |
 
@@ -785,6 +874,19 @@ Horizontal or vertical progress bar with optional percentage label.
 ```
 
 ![progress_bar example](docs/screenshots/progress_bar.png)
+
+With a pattern:
+
+<!-- screenshot: progress_bar_patterns -->
+```yaml
+[
+    {"type": "progress_bar", "x_start": 10, "y_start": 12, "x_end": 286, "y_end": 40, "progress": 60, "fill": "black", "pattern": {"type": "dots", "color": "white", "spacing": 3}},
+    {"type": "progress_bar", "x_start": 10, "y_start": 52, "x_end": 286, "y_end": 80, "progress": 35, "fill": "white", "pattern": "hatch", "background_pattern": {"type": "tone", "level": 20}},
+    {"type": "progress_bar", "x_start": 10, "y_start": 92, "x_end": 286, "y_end": 120, "progress": 80, "fill": "yellow", "pattern": {"type": "hatch", "color": "red", "width": 2, "spacing": 6}},
+]
+```
+
+![progress_bar patterns example](docs/screenshots/progress_bar_patterns.png)
 
 ---
 
@@ -815,6 +917,7 @@ Time-series line chart with configurable axes, grid, and legends. Requires a `Da
 | `width`       | `2`       | Line width                                      |
 | `smooth`      | `false`   | Smooth the line                                 |
 | `line_style`  | `"solid"` | `"solid"`, `"dashed"`, or `"dotted"`            |
+| `pattern`     | —         | Pattern for the area under the line, in the series color unless it sets `color`; see [Pattern](#pattern) |
 | `show_points` | `false`   | Draw data points                                |
 | `span_gaps`   | `false`   | Connect across missing values                   |
 
@@ -896,6 +999,40 @@ Time-series line chart with configurable axes, grid, and legends. Requires a `Da
 
 ---
 
+With a pattern under the line:
+
+<!-- screenshot: plot_patterns -->
+```yaml
+{
+    "type": "plot",
+    "x_start": 0,
+    "y_start": 6,
+    "x_end": 292,
+    "y_end": 120,
+    "round_values": True,
+    "data": [
+        {
+            "entity": "sensor.temperature",
+            "color": "black",
+            "width": 2,
+            "pattern": {"type": "hatch", "angle": 90, "spacing": 5},
+        },
+        {
+            "entity": "sensor.humidity",
+            "color": "red",
+            "width": 2,
+            "pattern": {"type": "dots", "spacing": 4},
+        },
+    ],
+}
+```
+
+Series are drawn in order, so a later series paints over an earlier one. The plot draws no
+background and no frame: axes, grid and legends appear only when `yaxis`, `xaxis`, `ylegend`
+and `xlegend` are given, so the example above is just the lines and the areas under them.
+
+![plot patterns example](docs/screenshots/plot_patterns.png)
+
 ### `diagram`
 
 Simple bar chart with labeled axes.
@@ -917,6 +1054,7 @@ Simple bar chart with labeled axes.
 | `font`         | Font name                                                           |
 | `legend_size`  | Label font size                                                     |
 | `legend_color` | Label color                                                         |
+| `pattern`      | Pattern on every bar, over `color`; see [Pattern](#pattern)         |
 
 ```yaml
 {
@@ -931,6 +1069,25 @@ Simple bar chart with labeled axes.
 ```
 
 ![diagram example](docs/screenshots/diagram.png)
+
+
+With a pattern on the bars:
+
+<!-- screenshot: diagram_patterns -->
+```yaml
+{
+    "type": "diagram",
+    "x": 0,
+    "height": 128,
+    "bars": {
+        "values": "Mon,10;Tue,20;Wed,15",
+        "color": "red",
+        "pattern": {"type": "hatch", "color": "black", "angle": 135, "spacing": 5},
+    },
+}
+```
+
+![diagram patterns example](docs/screenshots/diagram_patterns.png)
 
 ---
 
