@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
+from odl_renderer.elements.patterns import clip_area, draw_pattern, parse_pattern
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -79,15 +80,25 @@ async def draw_rectangle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     radius = int(coerce_number(element.get("radius", 10 if "corners" in element else 0)))
     corners = get_rounded_corners(element.get("corners", "all" if "radius" in element else ""))
 
-    # Draw rectangle
-    draw.rounded_rectangle(
-        (x_start, y_start, x_end, y_end),
-        fill=rect_fill,
-        outline=rect_outline,
-        width=rect_width,
-        radius=radius,
-        corners=corners,
-    )
+    pattern = parse_pattern(element.get("pattern"))
+    box = (x_start, y_start, x_end, y_end)
+
+    if pattern is None:
+        draw.rounded_rectangle(
+            box, fill=rect_fill, outline=rect_outline, width=rect_width, radius=radius, corners=corners
+        )
+    else:
+        # Fill, then the pattern inside the shape, then the outline over both.
+        if rect_fill is not None:
+            draw.rounded_rectangle(box, fill=rect_fill, radius=radius, corners=corners)
+        area = clip_area(ctx, min(x_start, x_end), min(y_start, y_end), max(x_start, x_end), max(y_start, y_end))
+        if area is not None:
+            shape = Image.new("L", (area.width, area.height), 0)
+            shifted = (x_start - area.x, y_start - area.y, x_end - area.x, y_end - area.y)
+            ImageDraw.Draw(shape).rounded_rectangle(shifted, fill=255, radius=radius, corners=corners)
+            draw_pattern(ctx, pattern, area, shape)
+        if rect_outline is not None and rect_width > 0:
+            draw.rounded_rectangle(box, outline=rect_outline, width=rect_width, radius=radius, corners=corners)
 
     ctx.pos_y = y_end
 

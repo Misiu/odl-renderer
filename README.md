@@ -373,6 +373,7 @@ Rectangle with optional fill, outline, and rounded corners.
 | `width`   | no       | `1`       | Border width                                                                                                      |
 | `corners` | no       | —         | Which corners to round: `"all"`, `"top_left"`, `"top_right"`, `"bottom_left"`, `"bottom_right"` (comma-separated) |
 | `radius`  | no       | `10`      | Corner radius; only applies when `corners` is set                                                                 |
+| `pattern` | no       | —         | Pattern drawn over the fill and under the outline: a name (`"hatch"`) or an object, see [Pattern](#pattern) |
 
 ```yaml
 {
@@ -386,6 +387,64 @@ Rectangle with optional fill, outline, and rounded corners.
 ```
 
 ![rectangle example](docs/screenshots/rectangle.png)
+
+#### Pattern
+
+A rectangle can carry a `pattern`: hatching, stripes, dots, a grid or a tone. It is drawn
+over the `fill` (so the fill shows between the lines), inside the shape (rounded corners
+included) and under the outline. Pattern pixels are exact palette colors, never blended or
+anti-aliased, so every `dither` mode leaves them unchanged. The pattern is anchored to the
+canvas, not to the shape, so shapes that touch continue the same pattern without a seam.
+
+Give a name for the defaults (`"pattern": "hatch"`) or an object:
+
+| Field     | Applies to | Default   | Notes                                                                                                          |
+|-----------|------------|-----------|----------------------------------------------------------------------------------------------------------------|
+| `type`    | all        | —         | `"hatch"`, `"dots"`, `"grid"` or `"tone"`; `"solid"`, `"none"` or an unknown type draws no pattern             |
+| `color`   | all        | `"black"` | Any [color](#colors); alpha blends with what is below                                                          |
+| `spacing` | hatch, dots, grid | `4` | Pixels between lines or dots (for slanted hatching measured across the lines)                                  |
+| `width`   | hatch, dots, grid | `1` | Thickness of a line or size of a dot in pixels                                                                 |
+| `angle`   | hatch      | `45`      | Degrees counter-clockwise from the x axis: `0` horizontal, `90` vertical, `45` rises to the right, `135` falls |
+| `level`   | tone       | `50`      | Share of ink, `0` to `100`; an ordered (Bayer 8 x 8) dither, so 64 steps, each darker tone adding to the lighter |
+
+<!-- screenshot: rectangle_patterns -->
+```yaml
+[
+    {"type": "rectangle", "x_start": 8, "y_start": 8, "x_end": 68, "y_end": 60, "pattern": "hatch"},
+    {"type": "rectangle", "x_start": 78, "y_start": 8, "x_end": 138, "y_end": 60, "pattern": {"type": "dots", "spacing": 5}},
+    {"type": "rectangle", "x_start": 148, "y_start": 8, "x_end": 208, "y_end": 60, "pattern": {"type": "grid", "spacing": 8, "color": "red"}},
+    {"type": "rectangle", "x_start": 218, "y_start": 8, "x_end": 288, "y_end": 60, "pattern": {"type": "tone", "level": 30}},
+    {"type": "rectangle", "x_start": 8, "y_start": 70, "x_end": 138, "y_end": 120, "fill": "yellow", "radius": 12, "pattern": {"type": "hatch", "angle": 135, "color": "red", "width": 2, "spacing": 7}},
+    {"type": "rectangle", "x_start": 148, "y_start": 70, "x_end": 288, "y_end": 120, "radius": 12, "width": 2, "pattern": {"type": "hatch", "angle": 0}},
+]
+```
+
+![rectangle patterns example](docs/screenshots/rectangle_patterns.png)
+
+A `tone` is a fixed gray made of black and white pixels, the same on every shape, so it looks the
+same in a preview and on the display. It does not depend on `dither`, unlike the `half_*` colors:
+
+<!-- screenshot: rectangle_tones -->
+```yaml
+[
+    {"type": "rectangle", "x_start": 8, "y_start": 8, "x_end": 24, "y_end": 120, "pattern": {"type": "tone", "level": 100}},
+    {"type": "rectangle", "x_start": 30, "y_start": 8, "x_end": 46, "y_end": 120, "pattern": {"type": "tone", "level": 90}},
+    {"type": "rectangle", "x_start": 52, "y_start": 8, "x_end": 68, "y_end": 120, "pattern": {"type": "tone", "level": 80}},
+    {"type": "rectangle", "x_start": 74, "y_start": 8, "x_end": 90, "y_end": 120, "pattern": {"type": "tone", "level": 70}},
+    {"type": "rectangle", "x_start": 96, "y_start": 8, "x_end": 112, "y_end": 120, "pattern": {"type": "tone", "level": 60}},
+    {"type": "rectangle", "x_start": 118, "y_start": 8, "x_end": 134, "y_end": 120, "pattern": {"type": "tone", "level": 50}},
+    {"type": "rectangle", "x_start": 140, "y_start": 8, "x_end": 156, "y_end": 120, "pattern": {"type": "tone", "level": 40}},
+    {"type": "rectangle", "x_start": 162, "y_start": 8, "x_end": 178, "y_end": 120, "pattern": {"type": "tone", "level": 30}},
+    {"type": "rectangle", "x_start": 184, "y_start": 8, "x_end": 200, "y_end": 120, "pattern": {"type": "tone", "level": 20}},
+    {"type": "rectangle", "x_start": 206, "y_start": 8, "x_end": 222, "y_end": 120, "pattern": {"type": "tone", "level": 10}},
+    {"type": "rectangle", "x_start": 238, "y_start": 8, "x_end": 288, "y_end": 120, "fill": "half_black", "outline": None},
+]
+```
+
+![rectangle tones example](docs/screenshots/rectangle_tones.png)
+
+On the right, `half_black` for comparison: one fixed tone whose pixels depend on the dithering of
+the display.
 
 ---
 
