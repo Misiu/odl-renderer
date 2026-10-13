@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -12,7 +13,7 @@ from .coordinates import CoordinateParser
 # Import handler modules to trigger decorator registration
 from .elements import debug, icons, media, shapes, text, visualizations  # noqa: F401
 from .fonts import FontManager
-from .registry import get_all_handlers
+from .registry import get_all_handlers, get_resolver
 from .transforms import apply_transform_region, has_transform
 from .types import DataProvider, DrawingContext, ElementType
 
@@ -33,6 +34,10 @@ async def generate_image(
 
     Pure rendering function that accepts data and returns a full-color PIL Image.
     No Home Assistant dependencies, no entity resolution, no dithering.
+
+    Runs in two phases so the event loop stays responsive: network and history
+    access is awaited on the loop first, then all decoding and drawing runs in a
+    worker thread.
 
     Args:
         width: Canvas width in pixels
@@ -61,6 +66,65 @@ async def generate_image(
 
     _LOGGER.debug("Generating image: %dx%d, background=%s, accent=%s", width, height, background, accent_color)
 
+    resolved = await _resolve_elements(elements, session, data_provider)
+    return await asyncio.to_thread(
+        _render, width, height, resolved, background, accent_color, session, data_provider, font_dirs
+    )
+
+
+async def _resolve_elements(
+    elements: list[dict[str, Any]],
+    session: aiohttp.ClientSession | None,
+    data_provider: DataProvider | None,
+) -> list[dict[str, Any]]:
+    """Run the I/O half of every element that has one, on the event loop.
+
+    Returns a list aligned with *elements*, where each element that needs network
+    or history access is replaced by a copy carrying the fetched data. Hidden
+    elements and elements with a missing or unknown type are passed through
+    untouched; the latter are reported by the drawing phase.
+    """
+    resolved: list[dict[str, Any]] = []
+    for i, element in enumerate(elements):
+        resolver = None
+        if _coerce_visible(element.get("visible", True)):
+            try:
+                resolver = get_resolver(ElementType(element["type"]))
+            except (KeyError, ValueError):
+                pass
+        if resolver is not None:
+            try:
+                element = await resolver(element, session=session, data_provider=data_provider)
+            except Exception as e:
+                raise _element_error(i, element, e) from e
+        resolved.append(element)
+    return resolved
+
+
+def _element_error(index: int, element: dict[str, Any], err: Exception) -> ValueError:
+    """Log a failed element and return the ValueError to raise for it."""
+    if isinstance(err, (ValueError, KeyError)):
+        error_msg = f"Element {index + 1}: {str(err)}"
+    else:
+        error_msg = f"Element {index + 1} (type '{element.get('type', 'unknown')}'): {str(err)}"
+    _LOGGER.error(error_msg)
+    return ValueError(error_msg)
+
+
+def _render(
+    width: int,
+    height: int,
+    elements: list[dict[str, Any]],
+    background: str,
+    accent_color: str,
+    session: aiohttp.ClientSession | None,
+    data_provider: DataProvider | None,
+    font_dirs: list[str] | None,
+) -> Image.Image:
+    """Draw already-resolved elements onto a new canvas.
+
+    Synchronous and CPU-bound: generate_image() runs it in a worker thread.
+    """
     # Initialize components
     colors = ColorResolver(accent_color)
     fonts = FontManager(font_dirs=font_dirs)
@@ -98,28 +162,22 @@ async def generate_image(
             handler = draw_handlers.get(element_type)
             if handler:
                 if has_transform(element):
-                    await _render_transformed(ctx, handler, element)
+                    _render_transformed(ctx, handler, element)
                 else:
-                    await handler(ctx, element)
+                    handler(ctx, element)
             else:
                 error_msg = f"No handler found for element type: {element_type}"
                 _LOGGER.warning(error_msg)
                 # Continue processing other elements
 
-        except (ValueError, KeyError) as e:
-            error_msg = f"Element {i + 1}: {str(e)}"
-            _LOGGER.error(error_msg)
-            raise ValueError(error_msg) from e
         except Exception as e:
-            error_msg = f"Element {i + 1} (type '{element.get('type', 'unknown')}'): {str(e)}"
-            _LOGGER.error(error_msg)
-            raise ValueError(error_msg) from e
+            raise _element_error(i, element, e) from e
 
     # Return full-color PIL Image (caller handles dithering if needed)
     return img
 
 
-async def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[str, Any]) -> None:
+def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[str, Any]) -> None:
     """Render an element onto its own layer, transform it, then composite back.
 
     The element is drawn onto a transparent full-canvas layer by temporarily
@@ -133,7 +191,7 @@ async def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[s
     layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     ctx.img = layer
     try:
-        await handler(ctx, element)
+        handler(ctx, element)
     finally:
         ctx.img = base
 

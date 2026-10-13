@@ -11,7 +11,7 @@ from .shapes import draw_dashed_line
 
 
 @element_handler(ElementType.DEBUG_GRID)
-async def draw_debug_grid(ctx: DrawingContext, element: dict[str, Any]) -> None:
+def draw_debug_grid(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw debug grid for layout assistance.
 
