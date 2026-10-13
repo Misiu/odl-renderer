@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 if TYPE_CHECKING:
     import aiohttp
 
-    from .types import DataProvider, DrawingContext, ElementType
+    from .types import DataProvider, DrawingContext, ElementType, SourceGuard
 
 # Type alias for element handler functions. Handlers are synchronous: they run in a
 # worker thread and must not touch the event loop.
@@ -32,7 +32,7 @@ def element_handler(
     Args:
         element_type: The ElementType this handler processes
         requires: List of required element keys (validated before handler runs)
-        resolve: Optional coroutine ``resolve(element, *, session, data_provider)`` for
+        resolve: Optional coroutine ``resolve(element, *, session, data_provider, allow_source)`` for
                  elements that need I/O (HTTP, history). It runs on the event loop before
                  any drawing and returns the element the handler will receive.
     """
@@ -59,9 +59,10 @@ def element_handler(
                 *,
                 session: aiohttp.ClientSession | None,
                 data_provider: DataProvider | None,
+                allow_source: SourceGuard | None,
             ) -> dict[str, Any]:
                 validate(element)
-                return await resolve(element, session=session, data_provider=data_provider)
+                return await resolve(element, session=session, data_provider=data_provider, allow_source=allow_source)
 
             _resolvers[element_type] = resolver
 

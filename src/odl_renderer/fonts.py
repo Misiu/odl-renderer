@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Dict, Tuple
 
 from PIL import ImageFont
+
+from .types import SourceGuard, SourceNotAllowedError, check_source
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,13 +50,17 @@ class FontManager:
     - Relative names resolved against caller-supplied search directories
     """
 
-    def __init__(self, font_dirs: list[str] | None = None) -> None:
+    def __init__(self, font_dirs: list[str] | None = None, allow_source: SourceGuard | None = None) -> None:
         """Initialize the font manager.
 
         Args:
             font_dirs: Optional list of directories to search for fonts by name,
                        in priority order, before falling back to bundled assets.
+            allow_source: Optional policy consulted before a font is loaded from an
+                          absolute path. Fonts found by name in font_dirs or in the
+                          bundled assets are not subject to it.
         """
+        self._allow_source = allow_source
         self._font_cache: Dict[Tuple[str, int], ImageFont.FreeTypeFont] = {}
         self._font_dirs: list[str] = [d for d in (font_dirs or []) if os.path.isdir(d)]
 
@@ -102,9 +108,12 @@ class FontManager:
 
         Raises:
             ValueError: If font cannot be loaded
+            SourceNotAllowedError: If the path is refused by allow_source, or a
+                                   font name tries to leave the search directories
         """
         # If absolute path, load directly
         if os.path.isabs(font_spec):
+            check_source(self._allow_source, "file", font_spec)
             if not os.path.exists(font_spec):
                 raise ValueError(f"Font file not found: {font_spec}")
             try:
@@ -114,6 +123,10 @@ class FontManager:
 
         # Normalise: support both "ppb" and "ppb.ttf" / "ppb.otf"
         font_name = font_spec if font_spec.endswith((".ttf", ".otf")) else f"{font_spec}.ttf"
+
+        # A name is joined onto the search directories; it must not climb out of them.
+        if ".." in PurePath(font_name).parts:
+            raise SourceNotAllowedError("file", font_spec)
 
         # Search caller-supplied directories first
         for directory in self._font_dirs:
