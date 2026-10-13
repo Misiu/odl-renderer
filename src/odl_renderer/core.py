@@ -15,7 +15,7 @@ from .elements import debug, icons, media, shapes, text, visualizations  # noqa:
 from .fonts import FontManager
 from .registry import get_all_handlers, get_resolver
 from .transforms import apply_transform_region, has_transform
-from .types import DataProvider, DrawingContext, ElementType
+from .types import DataProvider, DrawingContext, ElementType, SourceGuard, SourceNotAllowedError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ async def generate_image(
     session: aiohttp.ClientSession | None = None,
     data_provider: DataProvider | None = None,
     font_dirs: list[str] | None = None,
+    allow_source: SourceGuard | None = None,
 ) -> Image.Image:
     """Generate image from drawing instructions.
 
@@ -53,12 +54,21 @@ async def generate_image(
         font_dirs: Optional list of directories to search for fonts by name,
                    in priority order, before falling back to bundled fonts.
                    Useful for providing host-specific font locations (e.g. /config/www/fonts).
+        allow_source: Optional policy ``allow_source(kind, source) -> bool`` consulted before
+                      an element loads an HTTP/HTTPS URL (kind "url") or a file given by
+                      absolute path, image or font (kind "file"). Returning False refuses
+                      the source. Without it every URL and readable file can be loaded, so
+                      pass one whenever elements come from an untrusted author. URL checks
+                      run on the event loop; file checks run in the drawing thread.
 
     Returns:
         PIL.Image.Image in RGB or RGBA mode (full color, no dithering)
 
     Raises:
         ValueError: If canvas dimensions are invalid or element processing fails
+        SourceNotAllowedError: If an element names a source that allow_source refuses,
+                               or a font name that leaves the font directories. A
+                               ValueError subclass carrying ``kind`` and ``source``.
     """
     # Validate dimensions
     if width <= 0 or height <= 0:
@@ -66,9 +76,9 @@ async def generate_image(
 
     _LOGGER.debug("Generating image: %dx%d, background=%s, accent=%s", width, height, background, accent_color)
 
-    resolved = await _resolve_elements(elements, session, data_provider)
+    resolved = await _resolve_elements(elements, session, data_provider, allow_source)
     return await asyncio.to_thread(
-        _render, width, height, resolved, background, accent_color, session, data_provider, font_dirs
+        _render, width, height, resolved, background, accent_color, session, data_provider, font_dirs, allow_source
     )
 
 
@@ -76,6 +86,7 @@ async def _resolve_elements(
     elements: list[dict[str, Any]],
     session: aiohttp.ClientSession | None,
     data_provider: DataProvider | None,
+    allow_source: SourceGuard | None,
 ) -> list[dict[str, Any]]:
     """Run the I/O half of every element that has one, on the event loop.
 
@@ -94,7 +105,11 @@ async def _resolve_elements(
                 pass
         if resolver is not None:
             try:
-                element = await resolver(element, session=session, data_provider=data_provider)
+                element = await resolver(
+                    element, session=session, data_provider=data_provider, allow_source=allow_source
+                )
+            except SourceNotAllowedError:
+                raise
             except Exception as e:
                 raise _element_error(i, element, e) from e
         resolved.append(element)
@@ -120,6 +135,7 @@ def _render(
     session: aiohttp.ClientSession | None,
     data_provider: DataProvider | None,
     font_dirs: list[str] | None,
+    allow_source: SourceGuard | None,
 ) -> Image.Image:
     """Draw already-resolved elements onto a new canvas.
 
@@ -127,7 +143,7 @@ def _render(
     """
     # Initialize components
     colors = ColorResolver(accent_color)
-    fonts = FontManager(font_dirs=font_dirs)
+    fonts = FontManager(font_dirs=font_dirs, allow_source=allow_source)
 
     # Create base image
     img = Image.new("RGBA", (width, height), color=colors.resolve(background))
@@ -141,6 +157,7 @@ def _render(
         session=session,
         data_provider=data_provider,
         pos_y=0,
+        allow_source=allow_source,
     )
 
     # Get all registered handlers
@@ -170,6 +187,8 @@ def _render(
                 _LOGGER.warning(error_msg)
                 # Continue processing other elements
 
+        except SourceNotAllowedError:
+            raise
         except Exception as e:
             raise _element_error(i, element, e) from e
 

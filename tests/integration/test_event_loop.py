@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import threading
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -19,9 +20,19 @@ def _png(color: tuple[int, int, int], size: tuple[int, int] = (20, 20)) -> bytes
     return buf.getvalue()
 
 
+class _FakeContent:
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    async def iter_chunked(self, size: int) -> AsyncIterator[bytes]:
+        for start in range(0, len(self._data), size):
+            yield self._data[start : start + size]
+
+
 class _FakeResponse:
     def __init__(self, data: bytes, fail: bool) -> None:
-        self._data = data
+        self.content = _FakeContent(data)
+        self.content_length: int | None = len(data)
         self._fail = fail
 
     async def __aenter__(self) -> _FakeResponse:
@@ -34,9 +45,6 @@ class _FakeResponse:
         if self._fail:
             raise RuntimeError("404 Not Found")
 
-    async def read(self) -> bytes:
-        return self._data
-
 
 class _FakeSession:
     """Stands in for aiohttp.ClientSession; records the thread each request is made on."""
@@ -45,9 +53,11 @@ class _FakeSession:
         self._data = data
         self._fail = fail
         self.calls: list[tuple[str, int]] = []
+        self.timeouts: list[Any] = []
 
-    def get(self, url: str) -> _FakeResponse:
+    def get(self, url: str, timeout: Any = None) -> _FakeResponse:
         self.calls.append((url, threading.get_ident()))
+        self.timeouts.append(timeout)
         return _FakeResponse(self._data, self._fail)
 
 

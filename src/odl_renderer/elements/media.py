@@ -12,7 +12,7 @@ from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
 from odl_renderer.media_loader import decode_image, fetch_image, is_http_url
 from odl_renderer.registry import element_handler
-from odl_renderer.types import DrawingContext, ElementType
+from odl_renderer.types import DrawingContext, ElementType, SourceGuard, SourceNotAllowedError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,7 +89,9 @@ def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
         raise ValueError(f"Failed to generate QR code: {err}") from err
 
 
-async def _resolve_downloaded_image(element: dict[str, Any], *, session: Any, data_provider: Any) -> dict[str, Any]:
+async def _resolve_downloaded_image(
+    element: dict[str, Any], *, session: Any, data_provider: Any, allow_source: SourceGuard | None
+) -> dict[str, Any]:
     """Fetch an HTTP image source on the event loop, leaving decoding to the handler.
 
     Other sources (PIL Image, bytes, file path, data URI) need no network and pass through.
@@ -98,7 +100,9 @@ async def _resolve_downloaded_image(element: dict[str, Any], *, session: Any, da
     if not is_http_url(url):
         return element
     try:
-        return {**element, "url": await fetch_image(url, session=session)}
+        return {**element, "url": await fetch_image(url, session=session, allow_source=allow_source)}
+    except SourceNotAllowedError:
+        raise
     except Exception as err:
         raise ValueError(f"Failed to process image: {err}") from err
 
@@ -143,7 +147,7 @@ def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) -> None:
         resize_method = element.get("resize_method", "stretch")
 
         # Decode the image; HTTP sources were already fetched by the resolver
-        source_img = decode_image(element["url"])
+        source_img = decode_image(element["url"], ctx.allow_source)
 
         # Process image
         if rotate:
@@ -177,5 +181,7 @@ def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) -> None:
         # Update vertical position
         ctx.pos_y = pos_y + target_size[1]
 
+    except SourceNotAllowedError:
+        raise
     except Exception as err:
         raise ValueError(f"Failed to process image: {err}") from err

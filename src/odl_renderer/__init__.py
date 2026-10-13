@@ -18,7 +18,7 @@ from .coordinates import CoordinateParser
 from .core import generate_image, should_show_element
 from .fonts import FontManager
 from .measure import TextMetrics, line_pitch, measure_text
-from .types import DrawingContext, ElementType, TextSegment
+from .types import DrawingContext, ElementType, SourceGuard, SourceKind, SourceNotAllowedError, TextSegment
 from .warmup import warmup
 
 __version__ = "0.5.14"
@@ -30,6 +30,9 @@ __all__ = [
     "ElementType",
     "DrawingContext",
     "TextSegment",
+    "SourceGuard",
+    "SourceKind",
+    "SourceNotAllowedError",
     "ColorResolver",
     "CoordinateParser",
     "FontManager",

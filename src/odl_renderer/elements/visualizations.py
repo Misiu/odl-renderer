@@ -602,7 +602,9 @@ class _PlotHistory:
 _HISTORY_KEY = "_history"
 
 
-async def _resolve_plot(element: dict[str, Any], *, session: Any, data_provider: Any) -> dict[str, Any]:
+async def _resolve_plot(
+    element: dict[str, Any], *, session: Any, data_provider: Any, allow_source: Any
+) -> dict[str, Any]:
     """Fetch the plot's history on the event loop, leaving all drawing to the handler."""
     if data_provider is None:
         return element  # reported by the handler
