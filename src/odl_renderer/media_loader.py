@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import io
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from PIL import Image
@@ -15,6 +16,23 @@ _LOGGER = logging.getLogger(__name__)
 # Warn only once about creating a throwaway HTTP session, so a dashboard that
 # re-renders every update doesn't repeat the message on every frame.
 _warned_sessionless = False
+
+
+@dataclass(frozen=True)
+class FetchedImage:
+    """Raw bytes of an image fetched over HTTP, not yet decoded.
+
+    Fetching happens on the event loop; decoding is CPU work, so it is deferred to
+    :func:`decode_image`, which can run in a worker thread.
+    """
+
+    url: str
+    data: bytes
+
+
+def is_http_url(source: object) -> bool:
+    """Return True if *source* is an HTTP/HTTPS URL string."""
+    return isinstance(source, str) and source.startswith(("http://", "https://"))
 
 
 async def load_image(
@@ -40,9 +58,39 @@ async def load_image(
     Raises:
         ValueError: If a source is invalid or an image cannot be loaded
     """
+    if is_http_url(source):
+        assert isinstance(source, str)
+        return decode_image(await fetch_image(source, session))
+    return decode_image(source)
+
+
+def decode_image(source: str | bytes | Image.Image | FetchedImage) -> Image.Image:
+    """Decode an image from any source that needs no network access.
+
+    Blocking (file I/O and image decoding): call it from a worker thread, not the
+    event loop. HTTP sources must be fetched first with :func:`fetch_image`.
+
+    Args:
+        source: PIL Image, bytes, a :class:`FetchedImage`, an absolute file path or a data URI.
+
+    Returns:
+        PIL Image object
+
+    Raises:
+        ValueError: If a source is invalid or an image cannot be loaded
+    """
     # Already a PIL Image - return as-is
     if isinstance(source, Image.Image):
         return source
+
+    # Fetched over HTTP - decode, reporting failures against the URL
+    if isinstance(source, FetchedImage):
+        try:
+            img = Image.open(io.BytesIO(source.data))
+            img.load()  # decode now, not later mid-composite
+            return img
+        except Exception as err:
+            raise ValueError(f"Failed to load image from {source.url}: {err}") from err
 
     # Bytes - decode with PIL
     if isinstance(source, bytes):
@@ -55,10 +103,6 @@ async def load_image(
     if not isinstance(source, str):
         raise ValueError(f"Invalid image source type: {type(source)}")
 
-    # HTTP/HTTPS URL
-    if source.startswith("http://") or source.startswith("https://"):
-        return await _load_from_http(source, session)
-
     # Data URI
     if source.startswith("data:"):
         return _load_from_data_uri(source)
@@ -66,6 +110,9 @@ async def load_image(
     # Absolute file path
     if source.startswith("/"):
         return _load_from_file(source)
+
+    if is_http_url(source):
+        raise ValueError(f"Image URL was not fetched before decoding: {source}")
 
     raise ValueError(
         f"Invalid image source: {source}\n"
@@ -78,21 +125,21 @@ async def load_image(
     )
 
 
-async def _load_from_http(
+async def fetch_image(
     url: str,
     session: aiohttp.ClientSession | None = None,
-) -> Image.Image:
-    """Load image from HTTP/HTTPS URL.
+) -> FetchedImage:
+    """Fetch an image's bytes from an HTTP/HTTPS URL without decoding them.
 
     Args:
         url: HTTP/HTTPS URL
         session: Optional aiohttp session
 
     Returns:
-        PIL Image object
+        The fetched bytes, tagged with their URL
 
     Raises:
-        ValueError: If the image cannot be fetched or decoded
+        ValueError: If the image cannot be fetched
     """
     try:
         # Use provided session or create temporary one
@@ -117,9 +164,7 @@ async def _load_from_http(
                     response.raise_for_status()
                     image_bytes = await response.read()
 
-        img = Image.open(io.BytesIO(image_bytes))
-        img.load()  # decode now, not later mid-composite
-        return img
+        return FetchedImage(url, image_bytes)
 
     except Exception as err:
         raise ValueError(f"Failed to load image from {url}: {err}") from err
