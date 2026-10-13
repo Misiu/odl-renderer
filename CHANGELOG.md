@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.15](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.14...odl-renderer-v0.5.15) (2026-10-13)
+
+
+### Features
+
+* add allow_source to restrict the URLs and files elements can load ([39a05e8](https://github.com/OpenDisplay/odl-renderer/commit/39a05e84a1062a6e9bc20d3056f9ba9e1a2a9a69))
+
 ## [0.5.14](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.13...odl-renderer-v0.5.14) (2026-10-13)
 
 
