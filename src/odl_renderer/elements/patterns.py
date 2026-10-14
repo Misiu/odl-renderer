@@ -15,6 +15,7 @@ from typing import Any
 
 from PIL import Image, ImageChops, ImageDraw
 
+from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
 from odl_renderer.types import DrawingContext
 
@@ -251,9 +252,8 @@ def draw_pattern(ctx: DrawingContext, pattern: Pattern, area: Area, shape: Image
         area: The part of the canvas to draw on
         shape: An ``L`` mask of the area, 255 inside the shape
     """
-    color = ctx.colors.resolve(pattern.color)
-    if color is None:
-        return
+    # A parsed pattern always names a color; the fallback only satisfies the resolver's type.
+    color = ctx.colors.resolve(pattern.color) or BLACK
     mask = ImageChops.multiply(pattern_ink(pattern, area), shape)
     if color[3] < OPAQUE:
         mask = mask.point(lambda value: value * color[3] // OPAQUE)

@@ -113,6 +113,22 @@ class TestDotsAndGrid:
 
         assert len(ink(image)) == 10 * 10 * 4
 
+    async def test_a_dot_from_three_pixels_up_is_round(self):
+        image = await render(pattern_rectangle({"type": "dots", "spacing": 12, "width": 5}))
+
+        # The dot at (12, 12) covers 12..16 both ways: its middle is ink, its corners are not.
+        assert image.getpixel((14, 14)) == BLACK
+        assert image.getpixel((14, 12)) == BLACK
+        assert image.getpixel((12, 14)) == BLACK
+        for corner in ((12, 12), (16, 12), (12, 16), (16, 16)):
+            assert image.getpixel(corner) == WHITE
+
+    async def test_a_dot_of_two_pixels_is_square(self):
+        image = await render(pattern_rectangle({"type": "dots", "spacing": 12, "width": 2}))
+
+        for corner in ((12, 12), (13, 12), (12, 13), (13, 13)):
+            assert image.getpixel(corner) == BLACK
+
     async def test_a_grid_draws_lines_both_ways(self):
         image = await render(pattern_rectangle({"type": "grid", "spacing": 10}))
 

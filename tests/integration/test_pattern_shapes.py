@@ -83,6 +83,11 @@ class TestPolygonAndArc:
         assert image.getpixel((15, 50)) == WHITE  # left of the left edge
         assert all(10 <= y <= 90 for _, y in pixels(image, BLACK))
 
+    async def test_a_polygon_without_points_draws_nothing(self):
+        image = await render(shape("polygon", points=[], fill="black", pattern=STRIPES))
+
+        assert pixels(image, BLACK) == set()
+
     async def test_a_pattern_turns_an_arc_into_a_striped_pie_slice(self):
         image = await render(
             shape("arc", x=50, y=50, radius=40, start_angle=0, end_angle=90, outline=None, pattern=STRIPES)
