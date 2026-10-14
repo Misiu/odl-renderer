@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol
 
 import aiohttp
 from PIL import Image
@@ -12,6 +12,36 @@ if TYPE_CHECKING:
     from .colors import ColorResolver
     from .coordinates import CoordinateParser
     from .fonts import FontManager
+
+
+# What an element is asking to load: an HTTP/HTTPS URL, or a file on disk
+# (an image or a font given by absolute path).
+SourceKind = Literal["url", "file"]
+
+# Caller-supplied policy deciding whether a source may be loaded. Returns True to
+# allow. URL checks run on the event loop; file checks run in the worker thread
+# that draws, so blocking work (e.g. resolving symlinks) is fine there.
+SourceGuard = Callable[[SourceKind, str], bool]
+
+
+class SourceNotAllowedError(ValueError):
+    """An element named a URL or file that may not be loaded.
+
+    Attributes:
+        kind: "url" or "file".
+        source: The refused URL or path, as written in the element.
+    """
+
+    def __init__(self, kind: SourceKind, source: str) -> None:
+        super().__init__(f"{'URL' if kind == 'url' else 'File'} not allowed: {source}")
+        self.kind = kind
+        self.source = source
+
+
+def check_source(allow_source: SourceGuard | None, kind: SourceKind, source: str) -> None:
+    """Raise SourceNotAllowedError if the caller's policy refuses *source*."""
+    if allow_source is not None and not allow_source(kind, source):
+        raise SourceNotAllowedError(kind, source)
 
 
 class DataProvider(Protocol):
@@ -113,3 +143,4 @@ class DrawingContext:
     session: aiohttp.ClientSession | None = None
     data_provider: "DataProvider | None" = None
     pos_y: int = 0
+    allow_source: SourceGuard | None = None

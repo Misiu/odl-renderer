@@ -10,9 +10,9 @@ from resizeimage import resizeimage  # type: ignore[import-untyped]
 
 from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
-from odl_renderer.media_loader import load_image
+from odl_renderer.media_loader import decode_image, fetch_image, is_http_url
 from odl_renderer.registry import element_handler
-from odl_renderer.types import DrawingContext, ElementType
+from odl_renderer.types import DrawingContext, ElementType, SourceGuard, SourceNotAllowedError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def _render_qr_image(
 
 
 @element_handler(ElementType.QRCODE, requires=["x", "y", "data"])
-async def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
+def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw QR code element.
 
     Generates and renders a QR code with the specified data and properties.
@@ -89,8 +89,30 @@ async def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
         raise ValueError(f"Failed to generate QR code: {err}") from err
 
 
-@element_handler(ElementType.DLIMG, requires=["x", "y", "url", "xsize", "ysize"])
-async def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) -> None:
+async def _resolve_downloaded_image(
+    element: dict[str, Any], *, session: Any, data_provider: Any, allow_source: SourceGuard | None
+) -> dict[str, Any]:
+    """Fetch an HTTP image source on the event loop, leaving decoding to the handler.
+
+    Other sources (PIL Image, bytes, file path, data URI) need no network and pass through.
+    """
+    url = element["url"]
+    if not is_http_url(url):
+        return element
+    try:
+        return {**element, "url": await fetch_image(url, session=session, allow_source=allow_source)}
+    except SourceNotAllowedError:
+        raise
+    except Exception as err:
+        raise ValueError(f"Failed to process image: {err}") from err
+
+
+@element_handler(
+    ElementType.DLIMG,
+    requires=["x", "y", "url", "xsize", "ysize"],
+    resolve=_resolve_downloaded_image,
+)
+def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw downloaded or local image.
 
     Loads and renders an image from various sources (HTTP URL, file path,
@@ -124,10 +146,8 @@ async def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) ->
         rotate = element.get("rotate", 0)
         resize_method = element.get("resize_method", "stretch")
 
-        # Load image using media_loader
-        # Pass session from context if available (for HA integration efficiency)
-        session = getattr(ctx, "session", None)
-        source_img = await load_image(element["url"], session=session)
+        # Decode the image; HTTP sources were already fetched by the resolver
+        source_img = decode_image(element["url"], ctx.allow_source)
 
         # Process image
         if rotate:
@@ -161,5 +181,7 @@ async def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) ->
         # Update vertical position
         ctx.pos_y = pos_y + target_size[1]
 
+    except SourceNotAllowedError:
+        raise
     except Exception as err:
         raise ValueError(f"Failed to process image: {err}") from err

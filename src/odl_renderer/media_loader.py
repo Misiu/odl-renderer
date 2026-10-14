@@ -3,12 +3,12 @@ from __future__ import annotations
 import base64
 import io
 import logging
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
 
+import aiohttp
 from PIL import Image
 
-if TYPE_CHECKING:
-    import aiohttp
+from .types import SourceGuard, check_source
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,10 +16,33 @@ _LOGGER = logging.getLogger(__name__)
 # re-renders every update doesn't repeat the message on every frame.
 _warned_sessionless = False
 
+# Limits on an HTTP image fetch, so a slow or oversized response cannot hold a
+# render (and the memory behind it) indefinitely.
+FETCH_TIMEOUT_SECONDS = 30
+MAX_IMAGE_BYTES = 32 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class FetchedImage:
+    """Raw bytes of an image fetched over HTTP, not yet decoded.
+
+    Fetching happens on the event loop; decoding is CPU work, so it is deferred to
+    :func:`decode_image`, which can run in a worker thread.
+    """
+
+    url: str
+    data: bytes
+
+
+def is_http_url(source: object) -> bool:
+    """Return True if *source* is an HTTP/HTTPS URL string."""
+    return isinstance(source, str) and source.startswith(("http://", "https://"))
+
 
 async def load_image(
     source: str | bytes | Image.Image,
     session: aiohttp.ClientSession | None = None,
+    allow_source: SourceGuard | None = None,
 ) -> Image.Image:
     """Load an image from various sources.
 
@@ -33,16 +56,53 @@ async def load_image(
         session: Optional aiohttp ClientSession for HTTP requests.
                 If provided, reuses existing session.
                 If not provided, creates a temporary session for each request.
+        allow_source: Optional policy consulted before a URL is fetched or a file is opened.
 
     Returns:
         PIL Image object
 
     Raises:
         ValueError: If a source is invalid or an image cannot be loaded
+        SourceNotAllowedError: If allow_source refuses the URL or file
+    """
+    if is_http_url(source):
+        assert isinstance(source, str)
+        return decode_image(await fetch_image(source, session, allow_source))
+    return decode_image(source, allow_source)
+
+
+def decode_image(
+    source: str | bytes | Image.Image | FetchedImage,
+    allow_source: SourceGuard | None = None,
+) -> Image.Image:
+    """Decode an image from any source that needs no network access.
+
+    Blocking (file I/O and image decoding): call it from a worker thread, not the
+    event loop. HTTP sources must be fetched first with :func:`fetch_image`.
+
+    Args:
+        source: PIL Image, bytes, a :class:`FetchedImage`, an absolute file path or a data URI.
+        allow_source: Optional policy consulted before a file is opened.
+
+    Returns:
+        PIL Image object
+
+    Raises:
+        ValueError: If a source is invalid or an image cannot be loaded
+        SourceNotAllowedError: If allow_source refuses the file
     """
     # Already a PIL Image - return as-is
     if isinstance(source, Image.Image):
         return source
+
+    # Fetched over HTTP - decode, reporting failures against the URL
+    if isinstance(source, FetchedImage):
+        try:
+            img = Image.open(io.BytesIO(source.data))
+            img.load()  # decode now, not later mid-composite
+            return img
+        except Exception as err:
+            raise ValueError(f"Failed to load image from {source.url}: {err}") from err
 
     # Bytes - decode with PIL
     if isinstance(source, bytes):
@@ -55,17 +115,17 @@ async def load_image(
     if not isinstance(source, str):
         raise ValueError(f"Invalid image source type: {type(source)}")
 
-    # HTTP/HTTPS URL
-    if source.startswith("http://") or source.startswith("https://"):
-        return await _load_from_http(source, session)
-
     # Data URI
     if source.startswith("data:"):
         return _load_from_data_uri(source)
 
     # Absolute file path
     if source.startswith("/"):
+        check_source(allow_source, "file", source)
         return _load_from_file(source)
+
+    if is_http_url(source):
+        raise ValueError(f"Image URL was not fetched before decoding: {source}")
 
     raise ValueError(
         f"Invalid image source: {source}\n"
@@ -78,28 +138,50 @@ async def load_image(
     )
 
 
-async def _load_from_http(
+async def _read_capped(response: aiohttp.ClientResponse) -> bytes:
+    """Read a response body, refusing one larger than MAX_IMAGE_BYTES."""
+    too_large = ValueError(f"image is larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB")
+    if (response.content_length or 0) > MAX_IMAGE_BYTES:
+        raise too_large
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in response.content.iter_chunked(64 * 1024):
+        size += len(chunk)
+        if size > MAX_IMAGE_BYTES:
+            raise too_large
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+async def fetch_image(
     url: str,
     session: aiohttp.ClientSession | None = None,
-) -> Image.Image:
-    """Load image from HTTP/HTTPS URL.
+    allow_source: SourceGuard | None = None,
+) -> FetchedImage:
+    """Fetch an image's bytes from an HTTP/HTTPS URL without decoding them.
+
+    The request is bounded by FETCH_TIMEOUT_SECONDS and the body by MAX_IMAGE_BYTES.
 
     Args:
         url: HTTP/HTTPS URL
         session: Optional aiohttp session
+        allow_source: Optional policy consulted before the URL is requested.
 
     Returns:
-        PIL Image object
+        The fetched bytes, tagged with their URL
 
     Raises:
-        ValueError: If the image cannot be fetched or decoded
+        ValueError: If the image cannot be fetched
+        SourceNotAllowedError: If allow_source refuses the URL
     """
+    check_source(allow_source, "url", url)
+    timeout = aiohttp.ClientTimeout(total=FETCH_TIMEOUT_SECONDS)
     try:
         # Use provided session or create temporary one
         if session:
-            async with session.get(url) as response:
+            async with session.get(url, timeout=timeout) as response:
                 response.raise_for_status()
-                image_bytes = await response.read()
+                image_bytes = await _read_capped(response)
         else:
             global _warned_sessionless
             if not _warned_sessionless:
@@ -110,17 +192,16 @@ async def _load_from_http(
                     "pooling and DNS caching."
                 )
 
-            import aiohttp
-
             async with aiohttp.ClientSession() as temp_session:
-                async with temp_session.get(url) as response:
+                async with temp_session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
-                    image_bytes = await response.read()
+                    image_bytes = await _read_capped(response)
 
-        img = Image.open(io.BytesIO(image_bytes))
-        img.load()  # decode now, not later mid-composite
-        return img
+        return FetchedImage(url, image_bytes)
 
+    except TimeoutError as err:
+        # aiohttp raises a bare TimeoutError with no message when the total timeout expires.
+        raise ValueError(f"Failed to load image from {url}: timed out after {FETCH_TIMEOUT_SECONDS} s") from err
     except Exception as err:
         raise ValueError(f"Failed to load image from {url}: {err}") from err
 

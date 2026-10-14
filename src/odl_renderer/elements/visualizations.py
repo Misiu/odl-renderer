@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any
@@ -620,24 +621,57 @@ def _render_series(
                 draw.ellipse([(x - point_size, y - point_size), (x + point_size, y + point_size)], fill=point_color)
 
 
-@element_handler(ElementType.PLOT, requires=["data"])
-async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
+@dataclass(frozen=True)
+class _PlotHistory:
+    """Historical states fetched for a plot, with the time window they cover."""
+
+    start: datetime
+    end: datetime
+    states: dict[str, list[dict[str, Any]]]
+
+
+# Element key under which the resolver hands the fetched history to the handler.
+_HISTORY_KEY = "_history"
+
+
+async def _resolve_plot(
+    element: dict[str, Any], *, session: Any, data_provider: Any, allow_source: Any
+) -> dict[str, Any]:
+    """Fetch the plot's history on the event loop, leaving all drawing to the handler."""
+    if data_provider is None:
+        return element  # reported by the handler
+
+    duration_seconds = float(element.get("duration", 60 * 60 * 24))
+    if duration_seconds <= 0:
+        raise ValueError("plot duration must be greater than 0")
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(seconds=duration_seconds)
+
+    entity_ids = [p["entity"] for p in element["data"]]
+    states = await data_provider.get_history(entity_ids, start, end)
+    return {**element, _HISTORY_KEY: _PlotHistory(start, end, states)}
+
+
+@element_handler(ElementType.PLOT, requires=["data"], resolve=_resolve_plot)
+def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw a line plot of time-series sensor data.
 
-    Requires a DataProvider in ctx.data_provider that supplies historical state
-    records for each entity referenced in element["data"].
+    Requires a DataProvider passed to generate_image() that supplies historical state
+    records for each entity referenced in element["data"]. The history is fetched by
+    the element's resolver before drawing starts.
 
     The optional ``low``/``high`` keys seed the y-axis range but do not pin it: if
     the data exceeds them the axis auto-expands to fit every point (they act as a
     minimum span, not a clamp).
 
     Args:
-        ctx: Drawing context — must have data_provider set.
+        ctx: Drawing context.
         element: Element dictionary with plot properties.
     Raises:
         ValueError: If data_provider is missing, config is invalid, or no data is available.
     """
-    if ctx.data_provider is None:
+    history = element.get(_HISTORY_KEY)
+    if not isinstance(history, _PlotHistory):
         raise ValueError("plot element requires a data_provider in DrawingContext")
 
     draw = ImageDraw.Draw(ctx.img)
@@ -647,17 +681,11 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
     y_end = ctx.coords.parse_y(element["y_end"]) if "y_end" in element else ctx.img.height - 1 - y_start
     font_name = element.get("font", "ppb.ttf")
 
-    duration_seconds = float(element.get("duration", 60 * 60 * 24))
-    if duration_seconds <= 0:
-        raise ValueError("plot duration must be greater than 0")
-    duration = timedelta(seconds=duration_seconds)
-    end = datetime.now(timezone.utc)
-    start = end - duration
+    start, end, all_states = history.start, history.end, history.states
+    duration = end - start
 
-    # Fetch and process data
+    # Process data
     min_v, max_v = element.get("low"), element.get("high")
-    entity_ids = [p["entity"] for p in element["data"]]
-    all_states = await ctx.data_provider.get_history(entity_ids, start, end)
     # Keep each entity's segments paired with its own config. Skipping entities with
     # no valid data while zipping against the full config list would otherwise shift
     # the mapping and render a series with another entity's color/width/smooth.
@@ -730,7 +758,7 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
 
 
 @element_handler(ElementType.PROGRESS_BAR, requires=["x_start", "x_end", "y_start", "y_end", "progress"])
-async def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> None:
+def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw progress bar with optional percentage text.
 
     Renders a progress bar to visualize a percentage value, with options
@@ -816,7 +844,7 @@ async def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> Non
 
 
 @element_handler(ElementType.DIAGRAM, requires=["x", "height"])
-async def draw_diagram(ctx: DrawingContext, element: dict[str, Any]) -> None:
+def draw_diagram(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw diagram with optional bars.
 
     Renders a basic diagram with axes and optional bar chart elements.

@@ -66,7 +66,7 @@ def _get_mdi_font(size: int) -> ImageFont.FreeTypeFont:
 
 
 @element_handler(ElementType.ICON, requires=["x", "y", "value", "size"])
-async def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
+def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw Material Design Icon.
 
     Renders an icon from the bundled MDI font (10,000+ icons).
@@ -121,7 +121,7 @@ async def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
 
 
 @element_handler(ElementType.ICON_SEQUENCE, requires=["x", "y", "icons", "size"])
-async def draw_icon_sequence(ctx: DrawingContext, element: dict[str, Any]) -> None:
+def draw_icon_sequence(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw a sequence of MDI icons.
 
     Renders multiple icons in a row with consistent spacing.

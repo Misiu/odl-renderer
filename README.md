@@ -106,6 +106,32 @@ image = await generate_image(
 
 `generate_image` silently skips directories that don't exist, so it's safe to pass a fixed list of candidate paths regardless of installation type.
 
+### Restricting what elements can load
+
+A `dlimg` element can fetch any HTTP/HTTPS URL and open any file, and any text element can open a font by absolute path. When elements come from someone other than the application itself, pass `allow_source` to decide what may be loaded:
+
+```python
+from odl_renderer import SourceNotAllowedError, generate_image
+
+def allow_source(kind: str, source: str) -> bool:
+    if kind == "url":
+        return source.startswith("https://images.example.com/")
+    return source.startswith("/srv/display-assets/")  # kind == "file"
+
+try:
+    image = await generate_image(width=400, height=300, elements=elements, allow_source=allow_source)
+except SourceNotAllowedError as err:
+    print(f"refused {err.kind}: {err.source}")
+```
+
+- `kind` is `"url"` for an HTTP/HTTPS URL and `"file"` for an image or font given by absolute path.
+- The check happens where the source is loaded, so it covers every element type and skips hidden elements.
+- URL checks run on the event loop. File checks run in the drawing thread, so they may do blocking work such as resolving symlinks.
+- Embedded sources (bytes, PIL objects, data URIs), bundled fonts and fonts found by name in `font_dirs` are not passed to the guard.
+- `SourceNotAllowedError` is a `ValueError` and is raised as-is, without the usual `Element N:` prefix.
+
+Independently of `allow_source`, a font name can never leave the font directories (`"../x.ttf"` is refused), and an HTTP image fetch is limited to 30 seconds and 32 MB.
+
 ### Colors
 
 | Value                      | Description                                        |
