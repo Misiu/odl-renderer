@@ -2,7 +2,7 @@
 
 Each picture is written to docs/screenshots/patterns/. They show what the pattern types
 look like, how a tone compares with a gray under dithering, how patterns layer with fills,
-outlines and rounded corners, and what a calendar looks like with and without them.
+outlines and rounded corners, and how every shape takes a pattern.
 """
 
 from __future__ import annotations
@@ -42,21 +42,6 @@ def text(value: str, x: int, y: int, size: int = 12, **fields: Any) -> Element:
     return {"type": "text", "value": value, "x": x, "y": y, "size": size, "anchor": "mt", **fields}
 
 
-def line(x_start: int, y_start: int, x_end: int, y_end: int, **fields: Any) -> Element:
-    """Return a dashed one pixel line."""
-    return {
-        "type": "line",
-        "x_start": x_start,
-        "y_start": y_start,
-        "x_end": x_end,
-        "y_end": y_end,
-        "dashed": True,
-        "dash_length": 2,
-        "space_length": 2,
-        **fields,
-    }
-
-
 async def render(elements: list[Element], width: int, height: int) -> Image.Image:
     """Render elements on a white canvas."""
     image: Image.Image = await generate_image(width=width, height=height, elements=elements, background="white")
@@ -68,46 +53,6 @@ def save(image: Image.Image, name: str) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ImageOps.expand(image, border=1, fill="black").save(OUTPUT_DIR / f"{name}.png")
     print(f"  OK  {name}.png")
-
-
-def without_patterns(elements: list[Element]) -> list[Element]:
-    """Return the same payload as a renderer that does not know `pattern` draws it."""
-    return [{key: value for key, value in element.items() if key != "pattern"} for element in elements]
-
-
-def tone_ramp() -> list[Element]:
-    """Bars with a tone each, the way other e-paper frameworks show their gray backgrounds."""
-    levels = [100, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 0]
-    elements: list[Element] = []
-    for index, level in enumerate(levels):
-        x = 30 + index * 46
-        elements.append(text(str(level), x + 18, 14, 13))
-        elements.append(
-            rectangle(
-                x,
-                40,
-                36,
-                360,
-                radius=12,
-                corners="all",
-                outline="black" if level == 0 else None,
-                pattern={"type": "tone", "level": level},
-            )
-        )
-    elements.append(
-        rectangle(
-            20,
-            418,
-            760,
-            44,
-            radius=12,
-            corners="all",
-            outline=None,
-            pattern={"type": "tone", "level": 22},
-        )
-    )
-    elements.append(text("Tone backgrounds: level is the share of ink, in percent", 400, 430, 18))
-    return elements
 
 
 def pattern_types() -> list[Element]:
@@ -333,98 +278,11 @@ def shapes_sheet() -> list[Element]:
     return elements
 
 
-def calendar_week() -> list[Element]:
-    """A week grid like the ones calendar widgets draw, using the patterns."""
-    left, top, column, header, row = 10, 10, 111, 34, 145
-    names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    elements: list[Element] = [rectangle(0, 0, 800, 480, outline="black", radius=8, corners="all")]
-    for index, name in enumerate(names):
-        x = left + index * column
-        today = index == 2
-        if today:
-            elements.append(rectangle(x, top, column, header, fill="black", outline=None))
-        elements.append(text(name, x + column // 2, top + 8, 16, color="white" if today else "black"))
-    for week in range(3):
-        y = top + header + week * row
-        for index in (5, 6):
-            elements.append(
-                rectangle(
-                    left + index * column + 1,
-                    y + 1,
-                    column - 1,
-                    row - 1,
-                    outline=None,
-                    pattern={"type": "tone", "level": 14},
-                )
-            )
-        for index in range(7):
-            elements.append(
-                text(str(10 + week * 7 + index), left + index * column + column - 12, y + 3, 11, anchor="rt")
-            )
-    for index in range(8):
-        x = left + index * column
-        elements.append(line(x, top + header, x, top + header + 3 * row))
-    for week in range(4):
-        y = top + header + week * row
-        elements.append(line(left, y, left + 7 * column, y))
-    bar_y = top + header + 22
-    elements.append(
-        rectangle(
-            left + 3 * column + 3,
-            bar_y,
-            3 * column - 6,
-            20,
-            radius=4,
-            corners="all",
-            pattern={"type": "hatch", "spacing": 4},
-        )
-    )
-    elements.append(text("Product offsite", left + 4 * column + 20, bar_y + 3, 12, stroke_width=2, stroke_fill="white"))
-    elements.append(
-        rectangle(
-            left + 2 * column + 3,
-            bar_y,
-            column - 6,
-            20,
-            radius=4,
-            corners="all",
-            pattern={"type": "dots", "spacing": 4},
-        )
-    )
-    elements.append(text("Audit", left + 2 * column + column // 2, bar_y + 3, 12, stroke_width=2, stroke_fill="white"))
-    second = top + header + row + 22
-    elements.append(
-        rectangle(
-            left + 1 * column + 3,
-            second,
-            4 * column - 6,
-            20,
-            radius=4,
-            corners="all",
-            fill="red",
-            outline="red",
-            pattern={"type": "hatch", "color": "yellow", "width": 2, "spacing": 7},
-        )
-    )
-    elements.append(text("Summer break", left + 3 * column, second + 3, 12, stroke_width=2, stroke_fill="white"))
-    for day, title, when in ((0, "Planning", "09:00"), (2, "Standup", "09:30"), (4, "Demo", "14:00")):
-        y = top + header + 2 * row + 24
-        x = left + day * column + 4
-        elements.append(rectangle(x, y, 3, 30, fill="black", outline=None))
-        elements.append(text(title, x + 8, y, 12, anchor="lt"))
-        elements.append(text(when, x + 8, y + 15, 11, anchor="lt"))
-    return elements
-
-
 async def main() -> None:
     """Write every picture."""
-    save(await render(tone_ramp(), 800, 480), "tone_ramp")
     save(await render(pattern_types(), 800, 480), "pattern_types")
     save(await render(layers(), 800, 340), "layers")
     save(await dithering_picture(), "dithering")
-    week = calendar_week()
-    save(await render(week, 800, 480), "calendar_week")
-    save(await render(without_patterns(week), 800, 480), "calendar_week_older_renderer")
     shapes = await generate_image(
         width=800, height=480, elements=shapes_sheet(), background="white", data_provider=SeriesProvider()
     )

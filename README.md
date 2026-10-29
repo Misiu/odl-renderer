@@ -33,7 +33,6 @@ pip install odl-renderer
 import asyncio
 from odl_renderer import generate_image
 
-
 async def main():
     image = await generate_image(
         width=296,
@@ -64,7 +63,6 @@ async def main():
         accent_color="red",
     )
     image.save("output.png")
-
 
 asyncio.run(main())
 ```
@@ -200,7 +198,7 @@ Each label below is drawn with its own anchor code at a crosshair; the intersect
 ]
 ```
 
-![anchor example](docs/screenshots/anchor.png)
+![anchor example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/anchor.png)
 
 ### The `visible` field
 
@@ -263,7 +261,7 @@ Every element type accepts an optional `rotation` (degrees, **positive = clockwi
 
 Only the first element matters for usage — the gray "ghost" shows the un-rotated original and the red dot marks the pivot (`pivot` defaults to the element's center; set e.g. `"pivot": "lt"` or `"pivot": [148, 64]` to move it).
 
-![rotation example](docs/screenshots/rotation.png)
+![rotation example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rotation.png)
 
 ### `mirror`
 
@@ -303,7 +301,7 @@ Every element type accepts an optional `mirror` to flip it about its `pivot`: `"
 
 The filled red shape is mirrored; the gray outline shows the original and the vertical red line marks the flip axis (the element's center by default).
 
-![mirror example](docs/screenshots/mirror.png)
+![mirror example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/mirror.png)
 
 ---
 
@@ -342,7 +340,7 @@ Single-line text with optional wrapping, truncation, stroke, and inline color ma
 }
 ```
 
-![text example](docs/screenshots/text.png)
+![text example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/text.png)
 
 **Inline color markup** (requires `parse_colors: true`): wrap text in `[color]...[/color]` tags. Accepts all named colors, short names, and hex (`[#ff0000]red text[/#ff0000]`).
 
@@ -380,7 +378,7 @@ Fixed-line text split by a delimiter, each line placed at a fixed vertical offse
 }
 ```
 
-![multiline example](docs/screenshots/multiline.png)
+![multiline example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/multiline.png)
 
 ---
 
@@ -414,7 +412,7 @@ Rectangle with optional fill, outline, and rounded corners.
 }
 ```
 
-![rectangle example](docs/screenshots/rectangle.png)
+![rectangle example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rectangle.png)
 
 #### Pattern
 
@@ -450,7 +448,7 @@ defaults (`"pattern": "hatch"`) or an object:
 ]
 ```
 
-![rectangle patterns example](docs/screenshots/rectangle_patterns.png)
+![rectangle patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rectangle_patterns.png)
 
 A `tone` is a fixed gray made of black and white pixels, the same on every shape, so it looks the
 same in a preview and on the display. It does not depend on `dither`, unlike the `half_*` colors:
@@ -472,7 +470,7 @@ same in a preview and on the display. It does not depend on `dither`, unlike the
 ]
 ```
 
-![rectangle tones example](docs/screenshots/rectangle_tones.png)
+![rectangle tones example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rectangle_tones.png)
 
 On the right, `half_black` for comparison: one fixed tone whose pixels depend on the dithering of
 the display.
@@ -480,9 +478,9 @@ the display.
 All pattern types, with angles and parameters, and how a pattern layers with a fill, an outline,
 rounded corners and a color with alpha:
 
-![every pattern type](docs/screenshots/patterns/pattern_types.png)
+![every pattern type](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/patterns/pattern_types.png)
 
-![layers, clipping and shapes that touch](docs/screenshots/patterns/layers.png)
+![layers, clipping and shapes that touch](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/patterns/layers.png)
 
 #### Patterns on every shape
 
@@ -497,12 +495,12 @@ fill first, then the pattern clipped to the silhouette, then the outline.
 | `diagram` | `bars.pattern` on every bar |
 | `plot` | `pattern` in a series: the area between the line and the bottom of the diagram, in the series color unless the pattern sets its own |
 
-![a pattern on every shape](docs/screenshots/patterns/shapes.png)
+![a pattern on every shape](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/patterns/shapes.png)
 
 A pattern is made of palette pixels, so a display that dithers its picture leaves it unchanged,
 where a gray fill turns into noise:
 
-![grays against patterns, as rendered and after dithering](docs/screenshots/patterns/dithering.png)
+![grays against patterns, as rendered and after dithering](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/patterns/dithering.png)
 
 ---
 
@@ -540,7 +538,7 @@ Repeating grid of rectangles — useful for dot matrices, grids, and decorative 
 }
 ```
 
-![rectangle_pattern example](docs/screenshots/rectangle_pattern.png)
+![rectangle_pattern example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rectangle_pattern.png)
 
 ---
 
@@ -569,7 +567,7 @@ Circle defined by center point and radius.
 }
 ```
 
-![circle example](docs/screenshots/circle.png)
+![circle example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/circle.png)
 
 With a pattern:
 
@@ -583,7 +581,7 @@ With a pattern:
 ]
 ```
 
-![circle patterns example](docs/screenshots/circle_patterns.png)
+![circle patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/circle_patterns.png)
 
 ---
 
@@ -613,7 +611,7 @@ Ellipse defined by a bounding box.
 }
 ```
 
-![ellipse example](docs/screenshots/ellipse.png)
+![ellipse example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/ellipse.png)
 
 With a pattern:
 
@@ -625,7 +623,7 @@ With a pattern:
 ]
 ```
 
-![ellipse patterns example](docs/screenshots/ellipse_patterns.png)
+![ellipse patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/ellipse_patterns.png)
 
 ---
 
@@ -648,7 +646,7 @@ Arbitrary polygon defined by a list of vertices.
 }
 ```
 
-![polygon example](docs/screenshots/polygon.png)
+![polygon example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/polygon.png)
 
 With a pattern:
 
@@ -661,7 +659,7 @@ With a pattern:
 ]
 ```
 
-![polygon patterns example](docs/screenshots/polygon_patterns.png)
+![polygon patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/polygon_patterns.png)
 
 ---
 
@@ -694,7 +692,7 @@ Arc or pie slice defined by center, radius, and angle range.
 }
 ```
 
-![arc example](docs/screenshots/arc.png)
+![arc example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/arc.png)
 
 With a pattern:
 
@@ -706,7 +704,7 @@ With a pattern:
 ]
 ```
 
-![arc patterns example](docs/screenshots/arc_patterns.png)
+![arc patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/arc_patterns.png)
 
 ---
 
@@ -737,7 +735,7 @@ Straight line between two points with optional dashing.
 }
 ```
 
-![line example](docs/screenshots/line.png)
+![line example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/line.png)
 
 ---
 
@@ -769,7 +767,7 @@ Single MDI icon.
 }
 ```
 
-![icon example](docs/screenshots/icon.png)
+![icon example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/icon.png)
 
 ---
 
@@ -798,7 +796,7 @@ Row or column of MDI icons.
 }
 ```
 
-![icon_sequence example](docs/screenshots/icon_sequence.png)
+![icon_sequence example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/icon_sequence.png)
 
 ---
 
@@ -832,7 +830,7 @@ Image from a URL, file path, data URI, bytes, or PIL Image object. Resized to fi
 }
 ```
 
-![dlimg example](docs/screenshots/dlimg.png)
+![dlimg example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/dlimg.png)
 
 ---
 
@@ -859,7 +857,7 @@ QR code generated from any text or URL.
 }
 ```
 
-![qrcode example](docs/screenshots/qrcode.png)
+![qrcode example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/qrcode.png)
 
 ---
 
@@ -899,7 +897,7 @@ Horizontal or vertical progress bar with optional percentage label.
 }
 ```
 
-![progress_bar example](docs/screenshots/progress_bar.png)
+![progress_bar example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/progress_bar.png)
 
 With a pattern:
 
@@ -912,7 +910,7 @@ With a pattern:
 ]
 ```
 
-![progress_bar patterns example](docs/screenshots/progress_bar_patterns.png)
+![progress_bar patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/progress_bar_patterns.png)
 
 ---
 
@@ -1021,7 +1019,7 @@ Time-series line chart with configurable axes, grid, and legends. Requires a `Da
 }
 ```
 
-![plot example](docs/screenshots/plot.png)
+![plot example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/plot.png)
 
 ---
 
@@ -1057,7 +1055,7 @@ Series are drawn in order, so a later series paints over an earlier one. The plo
 background and no frame: axes, grid and legends appear only when `yaxis`, `xaxis`, `ylegend`
 and `xlegend` are given, so the example above is just the lines and the areas under them.
 
-![plot patterns example](docs/screenshots/plot_patterns.png)
+![plot patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/plot_patterns.png)
 
 ### `diagram`
 
@@ -1094,7 +1092,7 @@ Simple bar chart with labeled axes.
 }
 ```
 
-![diagram example](docs/screenshots/diagram.png)
+![diagram example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/diagram.png)
 
 
 With a pattern on the bars:
@@ -1113,7 +1111,7 @@ With a pattern on the bars:
 }
 ```
 
-![diagram patterns example](docs/screenshots/diagram_patterns.png)
+![diagram patterns example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/diagram_patterns.png)
 
 ---
 
@@ -1144,4 +1142,4 @@ Renders a coordinate grid over the image. Useful during layout development.
 }
 ```
 
-![debug_grid example](docs/screenshots/debug_grid.png)
+![debug_grid example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/debug_grid.png)
