@@ -8,15 +8,15 @@ outlines and rounded corners, and how every shape takes a pattern.
 from __future__ import annotations
 
 import asyncio
-import math
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageOps
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from generate_screenshots import MockDataProvider
 
 from odl_renderer import generate_image
 
@@ -142,11 +142,10 @@ def layers() -> list[Element]:
     ]
 
 
-def dithering() -> tuple[list[Element], list[Element]]:
+def dithering() -> list[Element]:
     """Grays that a display dithers next to patterns that are already exact pixels."""
-    grays = [("dark_gray", None), ("gray", None), ("light_gray", None)]
     elements: list[Element] = []
-    for index, (color, _) in enumerate(grays):
+    for index, color in enumerate(("dark_gray", "gray", "light_gray")):
         elements.append(rectangle(20 + index * 130, 20, 110, 90, fill=color, outline="black"))
         elements.append(text(color, 75 + index * 130, 116, 13))
     for index, level in enumerate((75, 50, 25)):
@@ -163,13 +162,12 @@ def dithering() -> tuple[list[Element], list[Element]]:
         elements.append(text(f"tone {level}", 475 + index * 130, 116, 13))
     elements.append(rectangle(20, 150, 360, 40, outline="black", pattern="hatch"))
     elements.append(rectangle(420, 150, 360, 40, outline="black", pattern={"type": "dots", "spacing": 5}))
-    return elements, []
+    return elements
 
 
 async def dithering_picture() -> Image.Image:
     """Stack the picture as rendered over the same picture after 1-bit dithering."""
-    elements, _ = dithering()
-    rendered = await render(elements, 800, 210)
+    rendered = await render(dithering(), 800, 210)
     dithered = rendered.convert("1").convert("RGB")
     sheet = Image.new("RGB", (800, 470), "white")
     draw = ImageDraw.Draw(sheet)
@@ -183,25 +181,6 @@ async def dithering_picture() -> Image.Image:
 def shape(kind: str, **fields: Any) -> Element:
     """Return an element of any type from its fields."""
     return {"type": kind, **fields}
-
-
-class SeriesProvider:
-    """Two smooth series, one falling and one rising, for the plot in the shapes sheet."""
-
-    async def get_history(self, entity_ids: list[str], start: datetime, end: datetime) -> dict[str, list[Element]]:
-        hours = int((end - start).total_seconds() // 3600)
-        result: dict[str, list[Element]] = {}
-        for index, entity_id in enumerate(entity_ids):
-            records = []
-            for hour in range(hours + 1):
-                progress = hour / hours
-                wave = math.sin(progress * 6 + index) * 1.5
-                value = 24 - 14 * progress + wave if index == 0 else 8 + 14 * progress + wave
-                records.append(
-                    {"state": str(round(value, 2)), "last_changed": (start + timedelta(hours=hour)).isoformat()}
-                )
-            result[entity_id] = records
-        return result
 
 
 def shapes_sheet() -> list[Element]:
@@ -284,7 +263,7 @@ async def main() -> None:
     save(await render(layers(), 800, 340), "layers")
     save(await dithering_picture(), "dithering")
     shapes = await generate_image(
-        width=800, height=480, elements=shapes_sheet(), background="white", data_provider=SeriesProvider()
+        width=800, height=480, elements=shapes_sheet(), background="white", data_provider=MockDataProvider()
     )
     save(shapes.convert("RGB"), "shapes")
 
