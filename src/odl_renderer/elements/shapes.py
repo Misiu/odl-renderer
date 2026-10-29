@@ -7,7 +7,14 @@ from PIL import ImageDraw
 
 from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
-from odl_renderer.elements.patterns import ShapeStyle, paint_shape, parse_pattern
+from odl_renderer.elements.patterns import (
+    ShapeStyle,
+    box_around,
+    ellipse_shape,
+    paint_shape,
+    parse_pattern,
+    polygon_shape,
+)
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -166,15 +173,10 @@ def draw_polygon(ctx: DrawingContext, element: dict[str, Any]) -> None:
     if not vertices:
         return
 
-    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, *, fill: Any, outline: Any, width: int) -> None:
-        # The outline is one pixel wide whatever the `width`.
-        draw.polygon([(x + dx, y + dy) for x, y in vertices], fill=fill, outline=outline)
+    box = box_around(vertices)
+    paint_shape(ctx, shape_style(ctx, element), box, polygon_shape(vertices))
 
-    xs = [x for x, _ in vertices]
-    ys = [y for _, y in vertices]
-    paint_shape(ctx, shape_style(ctx, element), (min(xs), min(ys), max(xs), max(ys)), shape)
-
-    ctx.pos_y = max(ys)
+    ctx.pos_y = box[3]
 
 
 @element_handler(ElementType.CIRCLE, requires=["x", "y", "radius"])
@@ -191,10 +193,8 @@ def draw_circle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     y = ctx.coords.parse_y(element["y"])
     radius = ctx.coords.parse_size(element["radius"], is_width=True)
 
-    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
-        draw.ellipse([(x - radius + dx, y - radius + dy), (x + radius + dx, y + radius + dy)], **paint)
-
-    paint_shape(ctx, shape_style(ctx, element), (x - radius, y - radius, x + radius, y + radius), shape)
+    box = (x - radius, y - radius, x + radius, y + radius)
+    paint_shape(ctx, shape_style(ctx, element), box, ellipse_shape(*box))
 
     ctx.pos_y = y + radius
 
@@ -215,11 +215,8 @@ def draw_ellipse(ctx: DrawingContext, element: dict[str, Any]) -> None:
     y_start = ctx.coords.parse_y(element["y_start"])
     y_end = ctx.coords.parse_y(element["y_end"])
 
-    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
-        draw.ellipse([(x_start + dx, y_start + dy), (x_end + dx, y_end + dy)], **paint)
-
     box = (min(x_start, x_end), min(y_start, y_end), max(x_start, x_end), max(y_start, y_end))
-    paint_shape(ctx, shape_style(ctx, element), box, shape)
+    paint_shape(ctx, shape_style(ctx, element), box, ellipse_shape(x_start, y_start, x_end, y_end))
 
     ctx.pos_y = y_end
 

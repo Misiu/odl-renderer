@@ -13,8 +13,10 @@ from odl_renderer.coordinates import coerce_number
 from odl_renderer.elements.patterns import (
     ShapeStyle,
     bounding_box,
+    box_around,
     paint_shape,
     parse_pattern,
+    polygon_shape,
     rectangle_shape,
 )
 from odl_renderer.registry import element_handler
@@ -558,15 +560,9 @@ def _paint_area_under_line(
     if pattern is None:
         return
     bottom = diag.y + diag.height - 1
-    outline = [*line_points, (line_points[-1][0], bottom), (line_points[0][0], bottom)]
-
-    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
-        draw.polygon([(x + dx, y + dy) for x, y in outline], **paint)
-
-    xs = [x for x, _ in outline]
-    ys = [y for _, y in outline]
+    area = [*line_points, (line_points[-1][0], bottom), (line_points[0][0], bottom)]
     style = ShapeStyle(fill=None, outline=None, width=0, pattern=pattern)
-    paint_shape(ctx, style, (min(xs), min(ys), max(xs), max(ys)), shape)
+    paint_shape(ctx, style, box_around(area), polygon_shape(area))
 
 
 def _render_series(

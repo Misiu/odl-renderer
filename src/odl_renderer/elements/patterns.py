@@ -316,6 +316,31 @@ def rectangle_shape(left: float, top: float, right: float, bottom: float) -> Sha
     return shape
 
 
+def ellipse_shape(left: float, top: float, right: float, bottom: float) -> Shape:
+    """Return the shape of an ellipse that fills the box, which is a circle when it is square."""
+
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
+        draw.ellipse([(left + dx, top + dy), (right + dx, bottom + dy)], **paint)
+
+    return shape
+
+
+def polygon_shape(vertices: list[tuple[int, int]]) -> Shape:
+    """Return the shape of a polygon. Its outline is one pixel wide whatever the `width`."""
+
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, *, fill: Any, outline: Any, width: int) -> None:
+        draw.polygon([(x + dx, y + dy) for x, y in vertices], fill=fill, outline=outline)
+
+    return shape
+
+
 def bounding_box(left: float, top: float, right: float, bottom: float) -> tuple[int, int, int, int]:
     """Round a box outwards to whole pixels, for the area a pattern may cover."""
     return math.floor(left), math.floor(top), math.ceil(right), math.ceil(bottom)
+
+
+def box_around(vertices: list[tuple[int, int]]) -> tuple[int, int, int, int]:
+    """Return the bounding box of the vertices of a polygon."""
+    xs = [x for x, _ in vertices]
+    ys = [y for _, y in vertices]
+    return bounding_box(min(xs), min(ys), max(xs), max(ys))
