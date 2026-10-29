@@ -102,6 +102,12 @@ class TestPolygonAndArc:
         assert image.getpixel((50, 50)) == WHITE
         assert image.getpixel((90, 50)) == BLACK
 
+    async def test_an_arc_takes_its_width_as_a_string_as_templates_render_it(self):
+        as_string = await render(shape("arc", x=50, y=50, radius=40, start_angle=0, end_angle=90, width="3"))
+        as_number = await render(shape("arc", x=50, y=50, radius=40, start_angle=0, end_angle=90, width=3))
+
+        assert same(as_string, as_number)
+
 
 @pytest.mark.asyncio
 class TestProgressBar:

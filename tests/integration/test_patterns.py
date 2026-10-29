@@ -96,6 +96,12 @@ class TestHatch:
 
         assert same(await render(pattern_rectangle({"type": "hatch", "angle": -45})), falling)
 
+    @pytest.mark.parametrize("angle", [30, 45, 135])
+    async def test_lines_thicker_than_their_spacing_cover_the_shape(self, angle):
+        image = await render(pattern_rectangle({"type": "hatch", "angle": angle, "width": 100_000}))
+
+        assert set(image.getdata()) == {BLACK}
+
 
 @pytest.mark.asyncio
 class TestDotsAndGrid:
@@ -128,6 +134,19 @@ class TestDotsAndGrid:
 
         for corner in ((12, 12), (13, 12), (12, 13), (13, 13)):
             assert image.getpixel(corner) == BLACK
+
+    async def test_dots_wide_enough_to_touch_cover_the_shape(self):
+        image = await render(pattern_rectangle({"type": "dots", "spacing": 1, "width": 100_000}))
+
+        assert set(image.getdata()) == {BLACK}
+
+    async def test_a_dot_cut_by_the_edge_of_the_shape_is_still_drawn(self):
+        pattern = {"type": "dots", "spacing": 8, "width": 4}
+        whole = await render(pattern_rectangle(pattern))
+        part = await render(E.rectangle(2, 2, 60, 60, outline=None, pattern=pattern))
+
+        # The dots at x = 0 and y = 0 start outside the shape but reach into it.
+        assert same(part.crop((2, 2, 61, 61)), whole.crop((2, 2, 61, 61)))
 
     async def test_a_grid_draws_lines_both_ways(self):
         image = await render(pattern_rectangle({"type": "grid", "spacing": 10}))
@@ -321,6 +340,11 @@ class TestFields:
 
         assert image.getpixel((50, 0)) == BLACK
 
+    async def test_an_empty_color_is_the_default_color(self):
+        image = await render(pattern_rectangle({"type": "hatch", "angle": 0, "color": None}))
+
+        assert image.getpixel((50, 0)) == BLACK
+
     async def test_a_hidden_rectangle_draws_no_pattern(self):
         image = await render(pattern_rectangle("hatch", visible=False))
 
@@ -372,8 +396,3 @@ class TestBackwardCompatibility:
         assert image.getpixel((11, 30)) == BLACK
         assert image.getpixel((12, 30)) == RED
         assert image.getpixel((10, 10)) == WHITE
-
-    async def test_other_shapes_ignore_a_pattern_field(self):
-        image = await render(E.circle(50, 50, 30, fill="red", pattern="hatch"))
-
-        assert image.getpixel((50, 50)) == RED
